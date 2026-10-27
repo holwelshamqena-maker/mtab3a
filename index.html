@@ -620,6 +620,8 @@
         .dashboard-action:hover { background:linear-gradient(135deg,#082b4b,#0d3b66); color:#fff; transform:translateY(-1px); }
         .dashboard-action i { width:24px; text-align:center; margin-left:8px; font-size:16px; }
         .dashboard-action:disabled { opacity:.45; cursor:not-allowed; filter:grayscale(.35); transform:none; }
+        .delete-btn { background:#0d3b66; color:#fff; min-width:42px; padding:9px 12px; }
+        .delete-btn:hover { background:#b42318; }
         .dashboard-action:disabled:hover { background:linear-gradient(135deg,#0d3b66,#1677bd); color:#fff; transform:none; }
 
         .dashboard-debt-ticker { margin-top:14px; border:1px solid #f1d28a; border-radius:14px; background:linear-gradient(180deg,#fffdf5,#fff8df); overflow:hidden; text-align:right; }
@@ -1288,7 +1290,7 @@
                                         <td class="${debtAgeClass}">${debtAgeText === "غير محدد" ? debtAgeText : debtAgeText + " يوم"}</td>
                                         <td><button onclick="showInvoices('${clientId}', '${client.name}')">عرض الفواتير</button></td>
                                         <td><button class="edit-btn" onclick="editClient('${clientId}')"><i class="fas fa-edit"></i> تعديل</button></td>
-                                        <td><button onclick="deleteClient('${clientId}')">❌</button></td>
+                                        <td><button class="delete-btn" title="حذف العميل" aria-label="حذف العميل" onclick="deleteClient('${clientId}')"><i class="fas fa-trash"></i></button></td>
                                     `;
                                     tableBody.appendChild(row);
                                     loader.style.display = "none";
