@@ -356,6 +356,20 @@
             border: 1px solid #ccc
         }
         /* Modal Styles - Updated z-index */
+
+        #paymentsLedgerModal { display:none; position:fixed; inset:0; justify-content:center; align-items:center; background:rgba(0,0,0,.75); z-index:21000; }
+        .payments-ledger-content { max-width:1100px; width:94%; }
+        .ledger-header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+        .ledger-header h3 { color:#0d3b66; margin:0 0 12px; }
+        .ledger-header button { width:auto; margin:0; padding:8px 12px; background:#dc3545; }
+        .ledger-summary { background:#eef6ff; color:#0d3b66; border-right:4px solid #0d3b66; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:700; }
+        .table-scroll { overflow-x:auto; }
+        #paymentsLedgerTable { width:100%; min-width:700px; border-collapse:collapse; }
+        #paymentsLedgerTable th, #paymentsLedgerTable td { padding:10px; border-bottom:1px solid #e5e7eb; text-align:center; }
+        .alert-critical { border-right:4px solid #dc3545; }
+        .alert-warning { border-right:4px solid #f59e0b; }
+        .alert-normal { border-right:4px solid #0d6efd; }
+        .notification-reminder { margin-top:7px; padding:6px 10px !important; background:#25d366 !important; color:#fff !important; border-radius:6px; font-size:12px; }
         #invoicesModal {
             display: none;
             position: fixed;
@@ -618,6 +632,9 @@
         .dashboard-debt-ticker:hover .debt-ticker-track { animation-play-state:paused; }
         .debt-ticker-card { direction:rtl; min-width:190px; padding:10px 14px; border:1px solid #f0ce77; border-radius:11px; background:#fff; color:#704800; box-shadow:0 3px 8px rgba(180,120,0,.10); cursor:pointer; transition:opacity .4s, transform .2s; }
         .debt-ticker-card:hover { transform:translateY(-2px); background:#fff4cc; }
+        .debt-ticker-card.debt-warning { border-color:#f59e0b; }
+        .debt-ticker-card.debt-critical { border-color:#dc3545; background:#fff5f5; color:#8b1e1e; }
+        .debt-ticker-card.debt-critical small { color:#dc3545; }
         .debt-ticker-card strong { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
         .debt-ticker-card small { display:block; margin-top:4px; color:#b45309; font-weight:800; }
         .debt-ticker-empty { direction:rtl; color:#8a7350; padding:8px 18px; }
@@ -660,13 +677,14 @@
         <button onclick="goToMembersPage()"><i class="fas fa-users"></i> قائمة الأعضاء</button>
         <button onclick="refreshPage()"><i class="fas fa-sync-alt"></i> تحديث الصفحة</button>
         <button onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
+        <button onclick="openPaymentsLedger()"><i class="fas fa-history"></i> سجل التحصيلات</button>
         <button onclick="goToSalaries()"><i class="fas fa-money-check-alt"></i> مرتبات</button>
         <button onclick="logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
     </div>
 
     <section id="dashboardSection" class="dashboard-section">
         <div class="dashboard-header">
-            <div><h2> مطابع طارق أبوهمام</h2><p>إدارة الأعضاء والفواتير والتحصيل من مكان واحد</p></div>
+            <div><h2>لوحة الحسابات الرئيسية</h2><p>إدارة الأعضاء والفواتير والتحصيل من مكان واحد</p></div>
             <button onclick="refreshPage()"><i class="fas fa-sync-alt"></i> تحديث البيانات</button>
         </div>
         <div class="dashboard-layout">
@@ -696,6 +714,7 @@
                     <button id="dashboardCollectionBtn" class="dashboard-action" disabled onclick="openDashboardCollection()"><i class="fas fa-money-bill-wave"></i> تحصيل مبلغ</button>
                     <button class="dashboard-action" onclick="goToDebtMembers()"><i class="fas fa-exclamation-triangle"></i> المديونية</button>
                     <button class="dashboard-action" onclick="goToMembersPage()"><i class="fas fa-users"></i> إدارة الأعضاء</button>
+                    <button class="dashboard-action" onclick="openPaymentsLedger()"><i class="fas fa-history"></i> سجل التحصيلات</button>
                     <button class="dashboard-action" onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
                 </div>
             </aside>
@@ -783,8 +802,24 @@
             <h3>تحصيل مبلغ من العميل</h3>
             <input step=0.01 min=0 placeholder="المبلغ بالجنيه" id=collectionAmount type=number />
             <input placeholder=الوصف id=collectionDesc type=text />
+            <select id="collectionMethod">
+                <option value="نقدي">نقدي</option>
+                <option value="تحويل بنكي">تحويل بنكي</option>
+                <option value="InstaPay">InstaPay</option>
+                <option value="فودافون كاش">فودافون كاش</option>
+                <option value="محفظة أخرى">محفظة أخرى</option>
+            </select>
             <button onclick="processCollection()"><i class="fas fa-money-bill-wave"></i> تحصيل المبلغ</button>
             <button onclick="closeCollectionModal()"><i class="fas fa-times"></i> إلغاء</button>
+        </div>
+    </div>
+
+    <div id="paymentsLedgerModal">
+        <div class="modal-content payments-ledger-content">
+            <div class="ledger-header"><h3><i class="fas fa-history"></i> سجل التحصيلات</h3><button onclick="closePaymentsLedger()"><i class="fas fa-times"></i></button></div>
+            <div class="ledger-summary" id="paymentsLedgerSummary">جارٍ تحميل سجل التحصيلات...</div>
+            <div class="table-scroll"><table id="paymentsLedgerTable"><thead><tr><th>التاريخ</th><th>العضو</th><th>المبلغ</th><th>طريقة الدفع</th><th>الوصف</th><th>إجراء</th></tr></thead><tbody></tbody></table></div>
+            <button onclick="closePaymentsLedger()"><i class="fas fa-times"></i> إغلاق</button>
         </div>
     </div>
     <!-- Edit Client Modal -->
@@ -846,6 +881,7 @@
                 <button disabled onclick="openInvoiceModal()" id="modalAddInvoiceBtn"><i class="fas fa-file-invoice"></i> إضافة فاتورة</button>
                 <button disabled onclick="openCollectionModal()" id="modalCollectBtn"><i class="fas fa-money-bill-wave"></i> تحصيل مبلغ</button>
                 <button onclick="shareViaWhatsApp()"><i class="fab fa-whatsapp"></i> مشاركة عبر WhatsApp</button>
+                <button onclick="printStatement()"><i class="fas fa-print"></i> طباعة الكشف</button>
                 <button id="showAllStatementBtn" style="display:none" onclick="toggleStatementView()"><i class="fas fa-book-open"></i> عرض كل كشف الحساب (قديم + جديد)</button>
                 <button onclick="closeInvoicesModal()"><i class="fas fa-times"></i> إغلاق</button>
             </div>
@@ -1230,13 +1266,11 @@
                                         
                                         debtAgeText = diffDays;
                                         
-                                        if (diffDays > 15) {
-                                            debtAgeClass = "debt-age-overdue";
+                                        if (diffDays > 15) debtAgeClass = "debt-age-overdue";
+                                        if (remaining > 0) {
                                             notifications.push({
-                                                id: clientId,
-                                                name: client.name,
-                                                remaining: remaining,
-                                                debtAge: diffDays
+                                                id: clientId, name: client.name, remaining: remaining, debtAge: diffDays,
+                                                severity: diffDays > 30 ? "critical" : diffDays > 15 ? "warning" : "normal"
                                             });
                                         }
                                     } else if (remaining > 0) {
@@ -1420,7 +1454,7 @@
                         row.className = "payment-row";
                         row.innerHTML = `
                             <td>${formatDate(invoice.date)}</td>
-                            <td>${invoice.desc || "عملية دفع"}</td>
+                            <td>${invoice.desc || "عملية دفع"}${invoice.method ? " — " + invoice.method : ""}</td>
                             <td>-</td>
                             <td>-</td>
                             <td>-</td>
@@ -1429,7 +1463,7 @@
                             <td>-</td>
                             <td>-</td>
                             <td class="no-print">-</td>
-                            <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')">❌</button></td>
+                            <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')"><i class="fas fa-trash"></i></button></td>
                         `;
                         
                         totalPaid += amount;
@@ -1458,7 +1492,7 @@
                             <td>${paid.toFixed(2)}</td>
                             <td>${remaining.toFixed(2)}</td>
                             <td class="no-print"><button class="edit-btn" onclick="editInvoice('${invoiceId}')"><i class="fas fa-edit"></i> تعديل</button></td>
-                            <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')">❌</button></td>
+                            <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')"><i class="fas fa-trash"></i></button></td>
                         `;
                     }
                     
@@ -1689,29 +1723,28 @@
             function updateNotifications() {
                 const dropdown = document.getElementById("notificationDropdown");
                 const count = document.getElementById("notificationCount");
-                
-                if (!dropdown || !count) {
-                    console.error("Notification elements not found");
-                    showAlert("خطأ", "تعذر العثور على عناصر الإشعارات", "error");
-                    return;
-                }
-                
+                if (!dropdown || !count) return;
                 count.innerText = notifications.length;
                 dropdown.innerHTML = "";
-                
-                if (notifications.length === 0) {
-                    dropdown.innerHTML = '<div class="notification-item">لا يوجد عملاء بمديونية متأخرة</div>';
-                } else {
-                    notifications.forEach(notification => {
-                        const item = document.createElement("div");
-                        item.className = "notification-item";
-                        item.innerHTML = `<strong>${notification.name}</strong><br>المتبقي: ${notification.remaining.toFixed(2)} جنيه<br>عمر المديونية: ${notification.debtAge} يوم`;
-                        item.onclick = () => showInvoices(notification.id, notification.name);
-                        dropdown.appendChild(item);
-                    });
-                }
+                if (!notifications.length) { dropdown.innerHTML = '<div class="notification-item">لا يوجد عملاء لديهم مديونية</div>'; return; }
+                notifications.forEach(notification => {
+                    const item = document.createElement("div");
+                    item.className = `notification-item alert-${notification.severity || "normal"}`;
+                    item.innerHTML = `<strong><i class="fas fa-exclamation-circle"></i> ${escapeHtml(notification.name)}</strong><br>المتبقي: ${notification.remaining.toFixed(2)} جنيه<br>عمر المديونية: ${notification.debtAge} يوم<br><button class="notification-reminder" onclick="event.stopPropagation(); sendDebtReminder('${notification.id}', '${escapeHtml(notification.name)}', ${notification.remaining})"><i class="fab fa-whatsapp"></i> تذكير WhatsApp</button>`;
+                    item.onclick = () => showInvoices(notification.id, notification.name);
+                    dropdown.appendChild(item);
+                });
             }
-            
+
+            window.sendDebtReminder = function(clientId, clientName, remaining) {
+                db.ref("clients/" + clientId).once("value").then(snapshot => {
+                    const phone = (snapshot.val() || {}).phone;
+                    if (!phone) return showAlert("تنبيه", "رقم هاتف العميل غير متوفر", "warning");
+                    const text = `الأستاذ/ة ${clientName}، نذكركم بوجود رصيد مستحق قدره ${Number(remaining).toFixed(2)} جنيه. نرجو التكرم بالسداد. شكراً لكم.`;
+                    window.open(`https://wa.me/2${String(phone).replace(/\D/g, "")}?text=${encodeURIComponent(text)}`, "_blank");
+                });
+            };
+
             // Global variables
             let notifications = [];
             let clientsData = null;
@@ -2073,13 +2106,15 @@
                     return;
                 }
                 Promise.all(entries.map(([id, client]) => db.ref("invoices/" + id).once("value").then(snapshot => {
-                    let total = 0, paid = 0;
-                    snapshot.forEach(child => { const invoice = child.val() || {}; if (invoice.isPayment) paid += Number(invoice.amount) || 0; else total += Number(invoice.total) || 0; });
-                    return { id, name: client.name || "بدون اسم", remaining: total - paid };
+                    let total = 0, paid = 0, oldestDate = null;
+                    snapshot.forEach(child => { const invoice = child.val() || {}; if (invoice.isPayment) paid += Number(invoice.amount) || 0; else { total += Number(invoice.total) || 0; const invoiceRemaining = Number(invoice.remaining) || 0; if (invoiceRemaining > 0 && invoice.date) { const parsed = new Date(invoice.date); const dateValue = isNaN(parsed.getTime()) ? parseArabicDate(invoice.date) : parsed; if (dateValue && (!oldestDate || dateValue < oldestDate)) oldestDate = dateValue; } } });
+                    const remaining = total - paid;
+                    const debtDays = oldestDate ? Math.max(0, Math.floor((new Date() - oldestDate) / 86400000)) : 0;
+                    return { id, name: client.name || "بدون اسم", remaining, debtDays, severity: debtDays > 30 ? "critical" : debtDays > 15 ? "warning" : "normal" };
                 }).catch(() => null))).then(rows => {
                     const debts = rows.filter(row => row && row.remaining > 0.005).sort((a,b) => b.remaining - a.remaining);
                     if (!debts.length) { track.innerHTML = '<span class="debt-ticker-empty">لا يوجد عملاء لديهم مديونية حاليًا</span>'; return; }
-                    const cards = debts.map(row => `<button class="debt-ticker-card" onclick="selectDebtTickerMember('${row.id}')"><strong><i class="fas fa-user"></i> ${escapeHtml(row.name)}</strong><small><i class="fas fa-coins"></i> المتبقي: ${row.remaining.toFixed(2)} جنيه</small></button>`).join("");
+                    const cards = debts.map(row => `<button class="debt-ticker-card debt-${row.severity}" onclick="selectDebtTickerMember('${row.id}')"><strong><i class="fas fa-user"></i> ${escapeHtml(row.name)}</strong><small><i class="fas fa-coins"></i> المتبقي: ${row.remaining.toFixed(2)} جنيه</small><small><i class="fas fa-clock"></i> مدة المديونية: ${row.debtDays} يوم</small></button>`).join("");
                     track.innerHTML = cards + cards;
                     track.style.animationDuration = Math.max(18, debts.length * 6) + "s";
                 });
@@ -2650,6 +2685,7 @@
                 modal.style.display = "none";
                 document.getElementById("collectionAmount").value = "";
                 document.getElementById("collectionDesc").value = "";
+                document.getElementById("collectionMethod").value = "نقدي";
             };
             
             window.processCollection = function() {
@@ -2659,6 +2695,7 @@
                 }
                 
                 const desc = document.getElementById("collectionDesc").value.trim();
+                const method = document.getElementById("collectionMethod").value;
                 const amount = parseFloat(document.getElementById("collectionAmount").value);
                 
                 if (!amount || amount <= 0 || isNaN(amount)) {
@@ -2736,6 +2773,8 @@
                         date: date,
                         desc: desc,
                         amount: amount.toFixed(2),
+                        method: method,
+                        clientId: currentClientId,
                         isPayment: true
                     };
                     
@@ -2767,6 +2806,32 @@
                 });
             };
             
+            window.printStatement = function() {
+                const content = document.getElementById("invoicesModal")?.querySelector(".modal-content");
+                if (!content) return;
+                const printWindow = window.open("", "_blank", "width=1000,height=800");
+                printWindow.document.write(`<html dir="rtl"><head><title>كشف حساب ${escapeHtml(currentClientName)}</title><style>body{font-family:Arial;padding:20px;direction:rtl}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:center}button,.no-print{display:none!important}</style></head><body>${content.innerHTML}</body></html>`);
+                printWindow.document.close(); printWindow.focus(); setTimeout(() => { printWindow.print(); printWindow.close(); }, 350);
+            };
+            window.openPaymentsLedger = function() {
+                const modal = document.getElementById("paymentsLedgerModal"); if (!modal) return;
+                modal.style.display = "flex";
+                const body = document.querySelector("#paymentsLedgerTable tbody"); const summary = document.getElementById("paymentsLedgerSummary");
+                body.innerHTML = ""; summary.textContent = "جارٍ تحميل سجل التحصيلات...";
+                db.ref("clients").once("value").then(clientSnap => {
+                    const clients = clientSnap.val() || {};
+                    return Promise.all(Object.keys(clients).map(clientId => db.ref("invoices/" + clientId).once("value").then(snap => ({clientId, client: clients[clientId], data: snap.val() || {}}))));
+                }).then(groups => {
+                    const payments = []; groups.forEach(group => Object.entries(group.data).forEach(([key, payment]) => { if (payment && payment.isPayment) payments.push({key, clientId:group.clientId, client:group.client, ...payment}); }));
+                    payments.sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
+                    let total = payments.reduce((sum,payment) => sum + (Number(payment.amount) || 0), 0);
+                    summary.innerHTML = `عدد العمليات: ${payments.length} — إجمالي التحصيلات: <strong>${total.toFixed(2)} جنيه</strong>`;
+                    if (!payments.length) { body.innerHTML = '<tr><td colspan="6">لا توجد عمليات تحصيل</td></tr>'; return; }
+                    payments.forEach(payment => { const row = document.createElement("tr"); row.innerHTML = `<td>${formatDate(payment.date)}</td><td>${escapeHtml(payment.client?.name || "بدون اسم")}</td><td>${Number(payment.amount || 0).toFixed(2)} جنيه</td><td>${escapeHtml(payment.method || "غير محدد")}</td><td>${escapeHtml(payment.desc || "تحصيل")}</td><td><button onclick="showInvoices('${payment.clientId}', '${escapeHtml(payment.client?.name || "")}')"><i class="fas fa-eye"></i> عرض</button></td>`; body.appendChild(row); });
+                }).catch(error => { summary.textContent = "تعذر تحميل سجل التحصيلات"; console.error(error); });
+            };
+            window.closePaymentsLedger = function() { const modal = document.getElementById("paymentsLedgerModal"); if (modal) modal.style.display = "none"; };
+
             window.shareViaWhatsApp = function() {
                 if (!currentClientId) {
                     showAlert("خطأ", "يرجى اختيار عميل أولاً", "error");
