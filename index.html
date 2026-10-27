@@ -603,6 +603,9 @@
         .dashboard-actions-grid { display:grid; gap:9px; }
         .dashboard-action { width:100%; margin:0; padding:14px 12px; text-align:right; background:linear-gradient(135deg,#0d3b66,#1677bd); color:#fff; border:0; border-radius:10px; font-weight:800; box-shadow:0 5px 12px rgba(13,59,102,.18); }
         .dashboard-action:hover { background:linear-gradient(135deg,#082b4b,#0d3b66); color:#fff; transform:translateY(-1px); }
+        .dashboard-action i { width:24px; text-align:center; margin-left:8px; font-size:16px; }
+        .dashboard-action:disabled { opacity:.45; cursor:not-allowed; filter:grayscale(.35); transform:none; }
+        .dashboard-action:disabled:hover { background:linear-gradient(135deg,#0d3b66,#1677bd); color:#fff; transform:none; }
         .dashboard-selected { margin-top:12px; padding:10px; border-radius:10px; background:#eef6ff; color:#0d3b66; text-align:center; font-weight:700; }
         @media (max-width:900px) { .dashboard-layout { grid-template-columns:1fr 1fr; grid-template-areas:"center center" "members actions"; } }
         @media (max-width:600px) { .dashboard-section { margin:72px 10px 10px; padding:12px; } .dashboard-layout { grid-template-columns:1fr; grid-template-areas:"center" "actions" "members"; } .dashboard-stat-grid { grid-template-columns:1fr; } .dashboard-member-list { max-height:260px; } .dashboard-header h2 { font-size:20px; } }
@@ -667,11 +670,11 @@
             <aside class="dashboard-panel dashboard-actions">
                 <h3>⚡ إجراءات سريعة</h3>
                 <div class="dashboard-actions-grid">
-                    <button class="dashboard-action" onclick="openDashboardAddClient()">➕ إضافة عضو</button>
-                    <button class="dashboard-action" onclick="openDashboardInvoice()">🧾 فاتورة جديدة</button>
-                    <button class="dashboard-action" onclick="openDashboardCollection()">💰 تحصيل مبلغ</button>
-                    <button class="dashboard-action" onclick="goToMembersPage()">📋 إدارة الأعضاء</button>
-                    <button class="dashboard-action" onclick="goToPricingPage()">🏷️ قائمة الأسعار</button>
+                    <button class="dashboard-action" onclick="openDashboardAddClient()"><i class="fas fa-user-plus"></i> إضافة عضو</button>
+                    <button id="dashboardInvoiceBtn" class="dashboard-action" disabled onclick="openDashboardInvoice()"><i class="fas fa-file-invoice"></i> فاتورة جديدة</button>
+                    <button id="dashboardCollectionBtn" class="dashboard-action" disabled onclick="openDashboardCollection()"><i class="fas fa-money-bill-wave"></i> تحصيل مبلغ</button>
+                    <button class="dashboard-action" onclick="goToMembersPage()"><i class="fas fa-users"></i> إدارة الأعضاء</button>
+                    <button class="dashboard-action" onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
                 </div>
             </aside>
         </div>
@@ -1793,6 +1796,7 @@
                 if (input) input.value = client.name || "";
                 if (box) box.classList.remove("open");
                 currentClientId = clientId; currentClientName = client.name || ""; currentClientType = client.clientType || "مكتب";
+                if (typeof updateDashboardMemberActions === "function") updateDashboardMemberActions();
                 showInvoices(clientId, client.name || "");
             };
             document.addEventListener("click", event => {
@@ -1839,6 +1843,7 @@
                     navbar.style.display = "flex";
                     menuToggle.style.display = window.innerWidth < 768 ? "block" : "none";
                     dashboardSection.style.display = "block";
+                    updateDashboardMemberActions();
                     statsBox.style.display = "none";
                     addClientBox.style.display = "none";
                     clientsSection.style.display = "none";
@@ -1868,6 +1873,7 @@
                 
                 currentClientId = "";
                 currentClientName = "";
+                updateDashboardMemberActions();
                 
                 const invoiceBox = document.getElementById("invoiceBox");
                 const dashboardSection = document.getElementById("dashboardSection");
@@ -2047,9 +2053,14 @@
                     button.onclick = () => selectDashboardMember(id); list.appendChild(button);
                 });
             };
+            function updateDashboardMemberActions() {
+                const hasMember = Boolean(currentClientId);
+                ["dashboardInvoiceBtn", "dashboardCollectionBtn"].forEach(id => { const button = document.getElementById(id); if (button) button.disabled = !hasMember; });
+            }
             window.selectDashboardMember = function(clientId) {
                 const client = (clientsData || {})[clientId]; if (!client) return;
                 currentClientId = clientId; currentClientName = client.name || ""; currentClientType = client.clientType || "مكتب";
+                updateDashboardMemberActions();
                 const selected = document.getElementById("dashboardSelectedMember");
                 if (selected) selected.innerHTML = `العضو المختار: <strong>${escapeHtml(currentClientName)}</strong> — ${escapeHtml(currentClientType)}`;
                 renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
