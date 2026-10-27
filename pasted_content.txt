@@ -1,0 +1,2593 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=UTF-8 />
+    <title>نظام فواتير مطبعة طارق أبوهمام</title>
+    <meta content="width=device-width,initial-scale=1" name=viewport />
+    <link rel=stylesheet href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" />
+    <link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin=anonymous referrerpolicy=no-referrer />
+    
+    <!-- تحميل مكتبات Firebase أولاً -->
+    <script src=https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js></script>
+    <script src=https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js></script>
+    <script src=https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js></script>
+    
+    <!-- ثم تحميل المكتبات الأخرى -->
+    <script src=https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js></script>
+    <script src=https://cdn.jsdelivr.net/npm/sweetalert2@11></script>
+    <script src=https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js></script>
+    
+    <style>
+        body {
+            font-family: Tajawal, sans-serif;
+            direction: rtl;
+            margin: 0;
+            background: #0d3b66
+        }
+        #menuToggle {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 1100;
+            transition: background .3s
+        }
+        #menuToggle:hover {
+            background: #0056b3
+        }
+        #sidebarBackdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, .5);
+            z-index: 999
+        }
+        #sidebarBackdrop.open {
+            display: block
+        }
+        #navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #0d3b66;
+            padding: 10px 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .2);
+            z-index: 1000;
+            display: none;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center
+        }
+        #navbarLogo {
+            max-height: 40px;
+            display: block;
+            transition: transform .3s ease
+        }
+        #navbarLogo:hover {
+            transform: scale(1.05)
+        }
+        #navbar input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            flex: 1;
+            min-width: 200px;
+            max-width: 300px
+        }
+        #navbar button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background .3s
+        }
+        #navbar button:hover {
+            background: #0056b3
+        }
+        #closeSidebar {
+            display: none;
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background .3s
+        }
+        #closeSidebar:hover {
+            background: #c82333
+        }
+        .notification-container {
+            position: relative
+        }
+        .notification-bell {
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 5px;
+            transition: background .3s
+        }
+        .notification-bell:hover {
+            background: #0056b3
+        }
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: #fff;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px
+        }
+        .notification-dropdown {
+            position: absolute;
+            top: 40px;
+            right: 0;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .2);
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1200
+        }
+        .notification-dropdown.open {
+            display: block
+        }
+        .notification-item {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer
+        }
+        .notification-item:hover {
+            background: #f8f9fa
+        }
+        .notification-item:last-child {
+            border-bottom: none
+        }
+        @media screen and (max-width:767px) {
+            #menuToggle {
+                display: block
+            }
+            #navbar {
+                position: fixed;
+                top: 0;
+                right: -200px;
+                width: 200px;
+                height: 100%;
+                flex-direction: column;
+                justify-content: flex-start;
+                padding: 15px;
+                background: #0d3b66;
+                transition: right .3s ease;
+                z-index: 1000
+            }
+            #navbar.open {
+                right: 0
+            }
+            #navbar input {
+                max-width: 80%;
+                padding: 8px;
+                font-size: 14px;
+                min-width: 120px
+            }
+            #navbar button {
+                max-width: 90%;
+                padding: 8px;
+                font-size: 14px;
+                margin: 5px 0
+            }
+            #navbarLogo {
+                max-height: 40px;
+                margin-bottom: 15px
+            }
+            #closeSidebar {
+                display: block
+            }
+            #statsBox {
+                margin-top: 60px
+            }
+            .notification-bell {
+                font-size: 20px;
+                padding: 8px
+            }
+        }
+        @media screen and (min-width:768px) {
+            #menuToggle {
+                display: none
+            }
+            #navbar {
+                flex-direction: row;
+                justify-content: center;
+                display: flex
+            }
+            #statsBox {
+                margin-top: 70px
+            }
+            #invoicesModal .modal-content {
+                width: 95vw;
+                max-width: 95vw
+            }
+        }
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #0d3b66;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999
+        }
+        .login-box {
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            height: 500px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, .2);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center
+        }
+        .login-logo {
+            max-width: 300px;
+            margin: 0 auto 20px;
+            display: block;
+            transition: transform .3s ease
+        }
+        .login-logo:hover {
+            transform: scale(1.05)
+        }
+        .login-box h2 {
+            margin-bottom: 30px;
+            color: #0d3b66;
+            font-size: 24px
+        }
+        .login-box input,
+        .login-box select {
+            width: 80%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            text-align: center
+        }
+        .login-box button {
+            width: 80%;
+            padding: 12px;
+            border: none;
+            background: #007bff;
+            color: #fff;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background .3s
+        }
+        .login-box button:hover {
+            background: #0056b3
+        }
+        #addClientBox input,
+        #addClientBox select {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px
+        }
+        .hidden {
+            display: none
+        }
+        .box {
+            background: #fff;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #ccc
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px
+        }
+        td,
+        th {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center
+        }
+        th {
+            background-color: #0d3b66;
+            color: #fff
+        }
+        .payment-row {
+            background-color: #e0f7fa;
+            font-weight: 700
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            background-color: #0d3b66;
+            color: #fff;
+            border: none;
+            cursor: pointer
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed
+        }
+        input,
+        select {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ccc
+        }
+        /* Modal Styles - Updated z-index */
+        #invoicesModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, .7);
+            z-index: 10000;
+        }
+        #invoiceModal,
+        #collectionModal,
+        #editClientModal,
+        #editInvoiceModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, .8);
+            z-index: 20000; /* أعلى من نافذة الفواتير */
+        }
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 95%;
+            max-width: 600px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, .5);
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            z-index: 20001; /* أعلى من محتوى نافذة الفواتير */
+        }
+        #invoicesModal .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 95%;
+            max-width: 95vw;
+            box-shadow: 0 0 30px rgba(0, 0, 0, .5);
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            z-index: 10001;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0d3b66;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none
+        }
+        @keyframes spin {
+            0% {
+                transform: rotate(0)
+            }
+            100% {
+                transform: rotate(360deg)
+            }
+        }
+        .swal-button {
+            background-color: #007bff !important;
+            font-family: Tajawal, sans-serif;
+            border-radius: 8px
+        }
+        .swal-button:hover {
+            background-color: #0056b3 !important
+        }
+        .swal2-content,
+        .swal2-title {
+            font-family: Tajawal, sans-serif;
+            direction: rtl
+        }
+        #noResults {
+            text-align: center;
+            color: #666;
+            margin-top: 10px;
+            display: none
+        }
+        .no-print {
+            display: block
+        }
+        .debt-age-overdue {
+            color: #f00;
+            font-weight: 700
+        }
+        .client-filter-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            justify-content: center
+        }
+        .client-filter-button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #0d3b66;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background .3s
+        }
+        .client-filter-button:hover {
+            background-color: #0056b3
+        }
+        .client-filter-button.active {
+            background-color: #007bff;
+            font-weight: 700
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #0d3b66 0, #1a4971 100%);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            flex: 0 0 150px;
+            text-align: center;
+            transition: transform .3s ease, box-shadow .3s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 5px
+        }
+        .stats-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, .2)
+        }
+        .stats-card h4 {
+            margin: 0 0 5px;
+            font-size: 16px;
+            font-weight: 500
+        }
+        .stats-card p {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700
+        }
+        .stats-card .icon {
+            font-size: 35px;
+            margin-bottom: 5px;
+            opacity: .9;
+            color: #fff
+        }
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, .1), transparent);
+            transform: rotate(45deg)
+        }
+        #statsLoader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%)
+        }
+        /* Edit button styling */
+        .edit-btn {
+            background-color: #28a745;
+            margin-left: 5px;
+        }
+        .edit-btn:hover {
+            background-color: #218838;
+        }
+        
+        /* إضافة نمط للنوافذ المنبثقة لضمان ظهورها في المقدمة */
+        .swal2-popup {
+            z-index: 30000 !important;
+        }
+        .swal2-container {
+            z-index: 30000 !important;
+        }
+        
+        /* رسالة خطأ لتحميل المكتبات */
+        .error-message {
+            text-align: center;
+            padding: 50px;
+            font-family: 'Tajawal', sans-serif;
+            direction: rtl;
+            color: #d32f2f;
+        }
+        
+        /* تنسيق حقل الوصف */
+        .description-field {
+            margin: 10px 0;
+        }
+        .description-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <button id=menuToggle onclick=toggleMenu()>☰</button>
+    <div id=sidebarBackdrop></div>
+    <div id=loginScreen class=login-screen>
+        <div class=login-box>
+            <img class=login-logo alt="شعار مطبعة طارق أبوهمام" src=https://i.servimg.com/u/f28/15/53/23/87/ae_a_010.jpg />
+            <h2>تسجيل الدخول</h2>
+            <input placeholder="البريد الإلكتروني" id=loginUser type=email />
+            <input placeholder="كلمة المرور" id=loginPass type=password />
+            <button onclick=checkLogin()>دخول</button>
+        </div>
+    </div>
+    <div id=navbar>
+        <button id=closeSidebar onclick=toggleMenu()>✖</button>
+        <img id=navbarLogo src=https://i.servimg.com/u/f28/15/53/23/87/ae_a_010.png alt="شعار مطبعة طارق أبوهمام" />
+        <div class=notification-container>
+            <i class="fas fa-bell notification-bell" onclick=toggleNotifications()></i>
+            <span class=notification-count id=notificationCount>0</span>
+            <div class=notification-dropdown id=notificationDropdown></div>
+        </div>
+        <input onkeyup=debouncedSearchClients() placeholder="ابحث عن عميل" id=searchBox type=text />
+        <button onclick=goToHomePage()>الصفحة الرئيسية</button>
+        <button onclick=refreshPage()>تحديث الصفحة</button>
+        <button onclick=goToSalaries()>مرتبات</button>
+        <button onclick=logout()>تسجيل الخروج</button>
+    </div>
+    <div style=display:none id=statsBox class=box>
+        <h3 style=width:100%;text-align:center;color:#0d3b66;margin-bottom:3px>الإحصائيات العامة</h3>
+        <div class=loader id=statsLoader></div>
+        <div style=display:flex;flex-wrap:wrap;justify-content:center;gap:10px>
+            <div class=stats-card>
+                <i class="fas fa-file-invoice icon"></i>
+                <h4>الفواتير</h4>
+                <p><span id=totalAll>0</span></p>
+            </div>
+            <div class=stats-card>
+                <i class="fas fa-money-bill-wave icon"></i>
+                <h4>المحصل</h4>
+                <p><span id=totalPaid>0</span></p>
+            </div>
+            <div class=stats-card>
+                <i class="fas fa-hourglass-half icon"></i>
+                <h4>المتبقي</h4>
+                <p><span id=totalRemain>0</span></p>
+            </div>
+        </div>
+    </div>
+    <div style=display:none id=addClientBox class=box>
+        <h3>➕ إضافة عميل</h3>
+        <input placeholder="اسم العميل" id=clientName type=text />
+        <input placeholder="رقم الهاتف" id=clientPhone type=text />
+        <select id=clientType>
+            <option value=مكتب>مكتب</option>
+            <option value=فرد>فرد</option>
+        </select>
+        <button onclick=addClient()>حفظ العميل</button>
+    </div>
+    <div id=invoiceModal>
+        <div class=modal-content>
+            <h3>إضافة فاتورة جديدة</h3>
+            <div id=stepSelectType>
+                <p>هل هذه الفاتورة طباعة بنر؟</p>
+                <button onclick=selectBanner(!0)>✅ نعم</button>
+                <button onclick=selectBanner(!1)>❌ لا</button>
+            </div>
+            <div class=hidden id=bannerForm>
+                <select id=bannerType>
+                    <option value=بنر>بنر</option>
+                    <option value=فليكس>فليكس</option>
+                    <option value=فينيل>فينيل</option>
+                </select>
+                <div class="description-field">
+                    <label for="bannerDesc">الوصف (اسم الخامة):</label>
+                    <input placeholder="اكتب وصف الخامة هنا" id=bannerDesc type=text />
+                </div>
+                <input step=0.01 min=0 placeholder="الطول (بالمتر)" id=length type=number />
+                <input step=0.01 min=0 placeholder="العرض (بالمتر)" id=width type=number />
+                <input step=1 min=1 placeholder=العدد id=bannerQty type=number />
+                <input step=0.01 min=0 placeholder="سعر المتر" id=price type=number />
+                <button onclick=saveBannerInvoice()>حفظ الفاتورة</button>
+                <button onclick=backToType()>⬅️ رجوع</button>
+                <button onclick=closeInvoiceModal()>❌ إلغاء</button>
+            </div>
+            <div class=hidden id=manualForm>
+                <input placeholder=الوصف id=desc type=text />
+                <input step=1 min=1 placeholder=الكمية id=qty type=number />
+                <input step=0.01 min=0 placeholder="سعر الوحدة" id=unitPrice type=number />
+                <button onclick=saveManualInvoice()>حفظ الفاتورة</button>
+                <button onclick=backToType()>⬅️ رجوع</button>
+                <button onclick=closeInvoiceModal()>❌ إلغاء</button>
+            </div>
+        </div>
+    </div>
+    <div id=collectionModal>
+        <div class=modal-content>
+            <h3>تحصيل مبلغ من العميل</h3>
+            <input step=0.01 min=0 placeholder="المبلغ بالجنيه" id=collectionAmount type=number />
+            <input placeholder=الوصف id=collectionDesc type=text />
+            <button onclick=processCollection()>تحصيل المبلغ</button>
+            <button onclick=closeCollectionModal()>❌ إلغاء</button>
+        </div>
+    </div>
+    <!-- Edit Client Modal -->
+    <div id=editClientModal>
+        <div class=modal-content>
+            <h3>تعديل بيانات العميل</h3>
+            <input type="text" id="editClientName" placeholder="اسم العميل">
+            <input type="text" id="editClientPhone" placeholder="رقم الهاتف">
+            <select id="editClientType">
+                <option value="مكتب">مكتب</option>
+                <option value="فرد">فرد</option>
+            </select>
+            <button onclick="saveEditedClient()">حفظ التعديلات</button>
+            <button onclick="closeEditClientModal()">إلغاء</button>
+        </div>
+    </div>
+    <!-- Edit Invoice Modal -->
+    <div id=editInvoiceModal>
+        <div class=modal-content>
+            <h3>تعديل الفاتورة</h3>
+            <div id=editStepSelectType>
+                <p>هل هذه الفاتورة طباعة بنر؟</p>
+                <button onclick="selectEditBanner(true)">✅ نعم</button>
+                <button onclick="selectEditBanner(false)">❌ لا</button>
+            </div>
+            <div id=editBannerForm class=hidden>
+                <select id=editBannerType>
+                    <option value=بنر>بنر</option>
+                    <option value=فليكس>فليكس</option>
+                    <option value=فينيل>فينيل</option>
+                </select>
+                <div class="description-field">
+                    <label for="editBannerDesc">الوصف (اسم الخامة):</label>
+                    <input placeholder="اكتب وصف الخامة هنا" id=editBannerDesc type=text />
+                </div>
+                <input type="number" id="editLength" step="0.01" min="0" placeholder="الطول (بالمتر)">
+                <input type="number" id="editWidth" step="0.01" min="0" placeholder="العرض (بالمتر)">
+                <input type="number" id="editBannerQty" step="1" min="1" placeholder="العدد">
+                <input type="number" id="editPrice" step="0.01" min="0" placeholder="سعر المتر">
+                <button onclick="saveEditedBannerInvoice()">حفظ التعديلات</button>
+                <button onclick="backToEditType()">⬅️ رجوع</button>
+                <button onclick="closeEditInvoiceModal()">❌ إلغاء</button>
+            </div>
+            <div id=editManualForm class=hidden>
+                <input type="text" id="editDesc" placeholder="الوصف">
+                <input type="number" id="editQty" step="1" min="1" placeholder="الكمية">
+                <input type="number" id="editUnitPrice" step="0.01" min="0" placeholder="سعر الوحدة">
+                <button onclick="saveEditedManualInvoice()">حفظ التعديلات</button>
+                <button onclick="backToEditType()">⬅️ رجوع</button>
+                <button onclick="closeEditInvoiceModal()">❌ إلغاء</button>
+            </div>
+        </div>
+    </div>
+    <div id=invoicesModal>
+        <div class=modal-content>
+            <h3>فواتير العميل: <span id=modalClientName></span></h3>
+            <div class=no-print style=display:flex;flex-wrap:wrap;gap:10px>
+                <button disabled onclick=openInvoiceModal() id=modalAddInvoiceBtn>➕ إضافة فاتورة</button>
+                <button disabled onclick=openCollectionModal() id=modalCollectBtn>تحصيل مبلغ</button>
+                <button onclick=shareViaWhatsApp()>مشاركة عبر WhatsApp</button>
+                <button onclick=closeInvoicesModal()>❌ إغلاق</button>
+            </div>
+            <div class=loader id=modalInvoicesLoader></div>
+            <div style=overflow-x:auto;margin-top:10px>
+                <table id=modalInvoiceTable>
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>الوصف</th>
+                            <th>الطول (متر)</th>
+                            <th>العرض (متر)</th>
+                            <th>الكمية</th>
+                            <th>السعر</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th class=no-print>تعديل</th>
+                            <th class=no-print>حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <h3>الإجمـــالي: <span id=modalTotalInvoices>0</span> جنيه</h3>
+        </div>
+    </div>
+    <div style=display:none id=clientsSection class=box>
+        <h3>قائمة العملاء</h3>
+        <div class=client-filter-buttons>
+            <button id=debtClientsBtn class="client-filter-button active" onclick="filterClients('debt')">المديونية</button>
+            <button id=allClientsBtn class=client-filter-button onclick="filterClients('all')">كل العملاء</button>
+            <button id=officesBtn class=client-filter-button onclick="filterClients('office')">المكاتب فقط</button>
+        </div>
+        <div class=loader id=clientsLoader></div>
+        <div id=noResults>لا توجد نتائج مطابقة</div>
+        <div style=overflow-x:auto>
+            <table id=clientsTable>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الهاتف</th>
+                        <th>نوع العميل</th>
+                        <th>إجمالي المطبوعات</th>
+                        <th>المتبقي</th>
+                        <th>عمر المديونية</th>
+                        <th>عرض</th>
+                        <th>تعديل</th>
+                        <th>حذف</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <div style=display:none id=invoiceBox class=box>
+        <h3>اسم العميل:<span id=selectedClientName></span></h3>
+        <div class=no-print style=display:flex;flex-wrap:wrap;gap:10px>
+            <button disabled onclick=openInvoiceModal() id=addInvoiceBtn>➕ إضافة فاتورة</button>
+            <button disabled onclick=openCollectionModal() id=collectBtn>تحصيل مبلغ</button>
+            <button onclick=shareViaWhatsApp()>مشاركة عبر WhatsApp</button>
+        </div>
+        <div class=loader id=invoicesLoader></div>
+        <div style=overflow-x:auto;margin-top:10px>
+            <table id=invoiceTable>
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>الوصف</th>
+                        <th>الطول (متر)</th>
+                        <th>العرض (متر)</th>
+                        <th>الكمية</th>
+                        <th>السعر</th>
+                        <th>الإجمالي</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th class=no-print>تعديل</th>
+                        <th class=no-print>حذف</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <h3>الإجمـــالي:<span id=totalInvoices>0</span>جنيه</h3>
+    </div>
+    
+    <script>
+        // التحقق من تحميل المكتبات الأساسية
+        function checkLibraries() {
+            if (typeof firebase === 'undefined') {
+                document.body.innerHTML = `
+                    <div class="error-message">
+                        <h2>خطأ في تحميل المكتبات</h2>
+                        <p>تعذر تحميل مكتبات Firebase. يرجى التحقق من اتصال الإنترنت وتحديث الصفحة.</p>
+                        <button onclick="window.location.reload()" style="padding: 10px 20px; background: #0d3b66; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">إعادة تحميل الصفحة</button>
+                    </div>
+                `;
+                return false;
+            }
+            
+            if (typeof Swal === 'undefined') {
+                console.warn("SweetAlert2 library not loaded, using native alerts");
+            }
+            
+            if (typeof _ === 'undefined') {
+                console.warn("Lodash library not loaded, some features may not work");
+            }
+            
+            return true;
+        }
+        
+        // تهيئة Firebase
+        function initializeFirebase() {
+            try {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBUhkNuW4HmYe7YtErEYALrsnc7dOhXxRk",
+                    authDomain: "tarek0.firebaseapp.com",
+                    databaseURL: "https://tarek0-default-rtdb.asia-southeast1.firebasedatabase.app",
+                    projectId: "tarek0",
+                    storageBucket: "tarek0.firebasestorage.app",
+                    messagingSenderId: "401049849658",
+                    appId: "1:401049849658:web:16ba28dd7fee3b8f20ca03"
+                };
+                
+                // التحقق مما إذا كان Firebase قد تم تهيئته بالفعل
+                if (!firebase.apps || !firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                
+                window.db = firebase.database();
+                console.log("Firebase initialized successfully");
+                return true;
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                document.body.innerHTML = `
+                    <div class="error-message">
+                        <h2>خطأ في تهيئة Firebase</h2>
+                        <p>فشل في تهيئة قاعدة البيانات: ${error.message}</p>
+                        <button onclick="window.location.reload()" style="padding: 10px 20px; background: #0d3b66; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">إعادة تحميل الصفحة</button>
+                    </div>
+                `;
+                return false;
+            }
+        }
+        
+        // بدء التطبيق
+        document.addEventListener("DOMContentLoaded", function() {
+            // التحقق من تحميل المكتبات
+            if (!checkLibraries()) {
+                return;
+            }
+            
+            // تهيئة Firebase
+            if (!initializeFirebase()) {
+                return;
+            }
+            
+            // Helper functions
+            function saveToLocalStorage(key, value) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (e) {
+                    console.error("Error saving to localStorage:", e);
+                }
+            }
+            
+            function getFromLocalStorage(key) {
+                try {
+                    return JSON.parse(localStorage.getItem(key)) || null;
+                } catch (e) {
+                    console.error("Error reading from localStorage:", e);
+                    return null;
+                }
+            }
+            
+            function showAlert(title, text, icon) {
+                if (typeof Swal === 'undefined') {
+                    alert(`${title}\n\n${text}`);
+                    return Promise.resolve();
+                }
+                
+                return Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: icon,
+                    confirmButtonText: "موافق",
+                    customClass: {
+                        confirmButton: "swal-button"
+                    },
+                    background: "#fff",
+                    backdrop: "rgba(0,0,0,0.6)",
+                    zIndex: 30000
+                });
+            }
+            
+            function showConfirmAlert(title, text, callback) {
+                if (typeof Swal === 'undefined') {
+                    if (confirm(`${title}\n\n${text}`)) {
+                        callback();
+                    }
+                    return;
+                }
+                
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "نعم",
+                    cancelButtonText: "إلغاء",
+                    customClass: {
+                        confirmButton: "swal-button",
+                        cancelButton: "swal-button"
+                    },
+                    zIndex: 30000
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        callback();
+                    }
+                });
+            }
+            
+            function convertArabicToEnglishNumbers(str) {
+                const arabicNumbers = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+                const englishNumbers = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+                return str.replace(/[٠-٩]/g, char => englishNumbers[arabicNumbers.indexOf(char)]);
+            }
+            
+            function parseArabicDate(dateStr) {
+                if (!dateStr || typeof dateStr !== "string") return null;
+                
+                const cleanDate = convertArabicToEnglishNumbers(dateStr).replace(/[^\d\/]/g, "");
+                const parts = cleanDate.split("/");
+                
+                if (parts.length !== 3) return null;
+                
+                const formattedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+                const date = new Date(formattedDate);
+                
+                return isNaN(date.getTime()) ? null : date;
+            }
+            
+            function formatDate(date) {
+                if (!date) return "غير محدد";
+                
+                const d = new Date(date);
+                if (isNaN(d.getTime())) {
+                    const parsedDate = parseArabicDate(date);
+                    return parsedDate && !isNaN(parsedDate.getTime()) 
+                        ? parsedDate.toLocaleDateString("ar-EG") 
+                        : (console.warn(`Invalid date format: ${date}`), "غير محدد");
+                }
+                
+                return d.toLocaleDateString("ar-EG");
+            }
+            
+            function getCurrentDate() {
+                return new Date().toISOString().split("T")[0];
+            }
+            
+            // Load clients
+            function loadClients(searchTerm = "", filterType = currentFilter) {
+                const loader = document.getElementById("clientsLoader");
+                const noResults = document.getElementById("noResults");
+                const tableBody = document.querySelector("#clientsTable tbody");
+                
+                if (!loader || !noResults || !tableBody) {
+                    console.error("Clients table elements not found");
+                    showAlert("خطأ", "تعذر العثور على عناصر جدول العملاء", "error");
+                    return;
+                }
+                
+                loader.style.display = "block";
+                noResults.style.display = "none";
+                tableBody.innerHTML = "";
+                let hasResults = false;
+                
+                // Reset notifications array
+                notifications = [];
+                
+                if (!clientsData) {
+                    loader.style.display = "none";
+                    noResults.style.display = "block";
+                    noResults.innerText = filterType === "debt" 
+                        ? "لا يوجد عملاء لديهم مديونية" 
+                        : "لا يوجد عملاء مسجلين";
+                    updateNotifications();
+                    return;
+                }
+                
+                Object.keys(clientsData).forEach(clientId => {
+                    const client = clientsData[clientId];
+                    
+                    // Filter by client type if needed
+                    if (filterType !== "office" || client.clientType === "مكتب") {
+                        // Filter by search term if provided
+                        if (!searchTerm || 
+                            client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            client.phone.includes(searchTerm)) {
+                            
+                            // Load invoices for this client
+                            db.ref("invoices/" + clientId).once("value").then(snapshot => {
+                                let totalInvoices = 0;
+                                let totalPaid = 0;
+                                let oldestDebtDate = null;
+                                
+                                if (snapshot.exists()) {
+                                    snapshot.forEach(invoiceSnapshot => {
+                                        const invoice = invoiceSnapshot.val();
+                                        
+                                        if (invoice.isPayment) {
+                                            totalPaid += Number(invoice.amount) || 0;
+                                        } else {
+                                            const invoiceTotal = Number(invoice.total) || 0;
+                                            const invoicePaid = Number(invoice.paid) || 0;
+                                            const invoiceRemaining = Number(invoice.remaining) || 0;
+                                            
+                                            if (isNaN(invoiceTotal) || isNaN(invoicePaid) || isNaN(invoiceRemaining)) {
+                                                console.warn(`Invalid invoice data for client ${clientId}, invoice ${invoiceSnapshot.key}:`, invoice);
+                                            }
+                                            
+                                            totalInvoices += invoiceTotal;
+                                            
+                                            // Track oldest debt date
+                                            if (invoiceRemaining > 0 && invoice.date) {
+                                                let dateObj = new Date(invoice.date);
+                                                
+                                                if (isNaN(dateObj.getTime())) {
+                                                    dateObj = parseArabicDate(invoice.date);
+                                                    
+                                                    if (!dateObj || isNaN(dateObj.getTime())) {
+                                                        console.warn(`Invalid date format for invoice ${invoiceSnapshot.key}: ${invoice.date}`);
+                                                        dateObj = new Date();
+                                                    }
+                                                }
+                                                
+                                                if (!oldestDebtDate || dateObj < oldestDebtDate) {
+                                                    oldestDebtDate = dateObj;
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                                
+                                const remaining = totalInvoices - totalPaid;
+                                
+                                // Show client if has debt or showing all clients
+                                if (filterType !== "debt" || remaining > 0) {
+                                    hasResults = true;
+                                    let debtAgeText = "-";
+                                    let debtAgeClass = "";
+                                    
+                                    if (oldestDebtDate && remaining > 0) {
+                                        const now = new Date();
+                                        const diffTime = now - oldestDebtDate;
+                                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                                        
+                                        debtAgeText = diffDays;
+                                        
+                                        if (diffDays > 15) {
+                                            debtAgeClass = "debt-age-overdue";
+                                            notifications.push({
+                                                id: clientId,
+                                                name: client.name,
+                                                remaining: remaining,
+                                                debtAge: diffDays
+                                            });
+                                        }
+                                    } else if (remaining > 0) {
+                                        debtAgeText = "غير محدد";
+                                        console.warn(`No valid oldest debt date for client ${clientId} despite having debt: ${remaining}`);
+                                    }
+                                    
+                                    const row = document.createElement("tr");
+                                    row.innerHTML = `
+                                        <td>${client.name}</td>
+                                        <td>${client.phone}</td>
+                                        <td>${client.clientType}</td>
+                                        <td>${totalInvoices.toFixed(2)} جنيه</td>
+                                        <td>${remaining.toFixed(2)} جنيه</td>
+                                        <td class="${debtAgeClass}">${debtAgeText === "غير محدد" ? debtAgeText : debtAgeText + " يوم"}</td>
+                                        <td><button onclick="showInvoices('${clientId}', '${client.name}')">عرض الفواتير</button></td>
+                                        <td><button class="edit-btn" onclick="editClient('${clientId}')">✏️ تعديل</button></td>
+                                        <td><button onclick="deleteClient('${clientId}')">❌</button></td>
+                                    `;
+                                    tableBody.appendChild(row);
+                                    loader.style.display = "none";
+                                    noResults.style.display = hasResults ? "none" : "block";
+                                }
+                                
+                                updateNotifications();
+                            }).catch(error => {
+                                console.error("Error loading invoices for client", clientId, ":", error);
+                                loader.style.display = "none";
+                                showAlert("خطأ", "خطأ أثناء تحميل فواتير العميل: " + error.message, "error");
+                            });
+                        }
+                    }
+                });
+                
+                if (!hasResults) {
+                    loader.style.display = "none";
+                    noResults.style.display = "block";
+                    noResults.innerText = filterType === "debt" 
+                        ? "لا يوجد عملاء لديهم مديونية" 
+                        : "لا يوجد عملاء مسجلين";
+                    updateNotifications();
+                }
+            }
+            
+            // Load invoices for a specific client
+            function loadInvoices() {
+                const loader = document.getElementById("modalInvoicesLoader");
+                const tableBody = document.querySelector("#modalInvoiceTable tbody");
+                const totalElement = document.getElementById("modalTotalInvoices");
+                
+                if (!loader || !tableBody || !totalElement) {
+                    console.error("Modal invoice table elements not found");
+                    showAlert("خطأ", "تعذر العثور على عناصر جدول الفواتير", "error");
+                    return;
+                }
+                
+                loader.style.display = "block";
+                tableBody.innerHTML = "";
+                
+                if (!navigator.onLine) {
+                    const cachedInvoices = getFromLocalStorage(`invoices_${currentClientId}`);
+                    if (cachedInvoices) {
+                        displayInvoices(cachedInvoices);
+                        showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
+                    } else {
+                        loader.style.display = "none";
+                        showAlert("خطأ", "لا يوجد اتصال بالإنترنت ولا توجد بيانات مخزنة", "error");
+                    }
+                    return;
+                }
+                
+                db.ref("invoices/" + currentClientId).once("value").then(snapshot => {
+                    const invoices = snapshot.val();
+                    saveToLocalStorage(`invoices_${currentClientId}`, invoices);
+                    displayInvoices(invoices);
+                }).catch(error => {
+                    console.error("Error loading invoices:", error);
+                    loader.style.display = "none";
+                    showAlert("خطأ", "خطأ أثناء تحميل الفواتير: " + error.message, "error");
+                });
+            }
+            
+            // Display invoices in the modal
+            function displayInvoices(invoices) {
+                const loader = document.getElementById("modalInvoicesLoader");
+                const tableBody = document.querySelector("#modalInvoiceTable tbody");
+                const totalElement = document.getElementById("modalTotalInvoices");
+                
+                if (!loader || !tableBody || !totalElement) {
+                    console.error("Modal invoice table elements not found");
+                    return;
+                }
+                
+                let totalAll = 0;
+                let totalPaid = 0;
+                
+                if (!invoices) {
+                    loader.style.display = "none";
+                    totalElement.innerText = "0.00";
+                    return;
+                }
+                
+                tableBody.innerHTML = "";
+                
+                Object.keys(invoices).forEach(invoiceId => {
+                    const invoice = invoices[invoiceId];
+                    const row = document.createElement("tr");
+                    
+                    if (invoice.isPayment) {
+                        const amount = Number(invoice.amount) || 0;
+                        if (isNaN(amount)) {
+                            console.warn(`Invalid payment amount for invoice ${invoiceId}:`, invoice.amount);
+                            return;
+                        }
+                        
+                        row.className = "payment-row";
+                        row.innerHTML = `
+                            <td>${formatDate(invoice.date)}</td>
+                            <td>${invoice.desc || "عملية دفع"}</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>${amount.toFixed(2)}</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td class="no-print">-</td>
+                            <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')">❌</button></td>
+                        `;
+                        
+                        totalPaid += amount;
+                    } else {
+                        const total = Number(invoice.total) || 0;
+                        const paid = Number(invoice.paid) || 0;
+                        const remaining = Number(invoice.remaining) || 0;
+                        
+                        if (isNaN(total) || isNaN(paid) || isNaN(remaining)) {
+                            console.warn(`Invalid invoice data for invoice ${invoiceId}:`, invoice);
+                            return;
+                        }
+                        
+                        totalAll += total;
+                        
+                        const length = invoice.length ? Number(invoice.length).toFixed(2) : "-";
+                        const width = invoice.width ? Number(invoice.width).toFixed(2) : "-";
+                        
+                        row.innerHTML = `
+                            <td>${formatDate(invoice.date)}</td>
+                            <td>${invoice.desc}</td>
+                            <td>${length}</td>
+                            <td>${width}</td>
+                            <td>${invoice.qty}</td>
+                            <td>${Number(invoice.price).toFixed(2)}</td>
+                            <td>${total.toFixed(2)}</td>
+                            <td>${paid.toFixed(2)}</td>
+                            <td>${remaining.toFixed(2)}</td>
+                            <td class="no-print"><button class="edit-btn" onclick="editInvoice('${invoiceId}')">✏️ تعديل</button></td>
+                            <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')">❌</button></td>
+                        `;
+                    }
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                const totalRemaining = totalAll - totalPaid;
+                
+                if (isNaN(totalRemaining)) {
+                    console.error("Invalid total calculation:", totalAll, totalPaid);
+                    showAlert("خطأ", "خطأ في حساب الإجمالي بسبب بيانات غير صالحة", "error");
+                    totalElement.innerText = "0.00";
+                } else {
+                    totalElement.innerText = totalRemaining.toFixed(2);
+                }
+                
+                loader.style.display = "none";
+            }
+            
+            // Redistribute payments after deleting a payment
+            function redistributePayments() {
+                const loader = document.getElementById("modalInvoicesLoader");
+                
+                if (!loader) {
+                    console.error("Modal invoices loader not found");
+                    return;
+                }
+                
+                loader.style.display = "block";
+                
+                db.ref("invoices/" + currentClientId).once("value").then(snapshot => {
+                    let totalPayments = 0;
+                    const updates = {};
+                    const invoices = [];
+                    
+                    // Calculate total payments and collect invoices
+                    if (snapshot.exists()) {
+                        snapshot.forEach(childSnapshot => {
+                            const invoice = childSnapshot.val();
+                            
+                            if (invoice.isPayment) {
+                                const amount = Number(invoice.amount) || 0;
+                                if (isNaN(amount)) {
+                                    console.warn(`Invalid payment amount for invoice ${childSnapshot.key}:`, invoice.amount);
+                                } else {
+                                    totalPayments += amount;
+                                }
+                            } else {
+                                const total = Number(invoice.total) || 0;
+                                if (isNaN(total)) {
+                                    console.warn(`Invalid total for invoice ${childSnapshot.key}:`, invoice.total);
+                                } else {
+                                    invoices.push({
+                                        key: childSnapshot.key,
+                                        total: total
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Reset all invoice payments
+                    invoices.forEach(invoice => {
+                        updates[`invoices/${currentClientId}/${invoice.key}/paid`] = 0;
+                        updates[`invoices/${currentClientId}/${invoice.key}/remaining`] = invoice.total.toFixed(2);
+                    });
+                    
+                    // Redistribute payments
+                    let remainingPayments = totalPayments;
+                    invoices.forEach(invoice => {
+                        if (remainingPayments > 0) {
+                            const paymentForInvoice = Math.min(invoice.total, remainingPayments);
+                            updates[`invoices/${currentClientId}/${invoice.key}/paid`] = paymentForInvoice.toFixed(2);
+                            updates[`invoices/${currentClientId}/${invoice.key}/remaining`] = (invoice.total - paymentForInvoice).toFixed(2);
+                            remainingPayments -= paymentForInvoice;
+                        }
+                    });
+                    
+                    console.log("Redistributing payments:", updates);
+                    
+                    // Apply updates
+                    db.ref().update(updates).then(() => {
+                        loadInvoices();
+                        window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                        updateNotifications();
+                    }).catch(error => {
+                        console.error("Error redistributing payments:", error);
+                        loader.style.display = "none";
+                        showAlert("خطأ", "خطأ أثناء إعادة توزيع المدفوعات: " + error.message, "error");
+                    });
+                }).catch(error => {
+                    console.error("Error loading invoices for redistribution:", error);
+                    loader.style.display = "none";
+                    showAlert("خطأ", "خطأ أثناء تحميل الفواتير لإعادة التوزيع: " + error.message, "error");
+                });
+            }
+            
+            // Calculate and display totals
+            function calculateTotals() {
+                const loader = document.getElementById("statsLoader");
+                const totalAllElement = document.getElementById("totalAll");
+                const totalPaidElement = document.getElementById("totalPaid");
+                const totalRemainElement = document.getElementById("totalRemain");
+                
+                if (!loader || !totalAllElement || !totalPaidElement || !totalRemainElement) {
+                    console.error("Stats elements not found");
+                    showAlert("خطأ", "تعذر العثور على عناصر الإحصائيات في الصفحة", "error");
+                    return;
+                }
+                
+                loader.style.display = "block";
+                
+                if (!navigator.onLine) {
+                    const cachedTotals = getFromLocalStorage("totalsCache");
+                    if (cachedTotals) {
+                        totalAllElement.innerText = cachedTotals.totalInvoices.toFixed(2);
+                        totalPaidElement.innerText = cachedTotals.totalPaid.toFixed(2);
+                        totalRemainElement.innerText = cachedTotals.totalRemain.toFixed(2);
+                        loader.style.display = "none";
+                        showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
+                    } else {
+                        showAlert("خطأ", "لا يوجد اتصال بالإنترنت ولا توجد بيانات مخزنة", "error");
+                        loader.style.display = "none";
+                    }
+                    return;
+                }
+                
+                db.ref("invoices").once("value").then(snapshot => {
+                    let totalInvoices = 0;
+                    let totalPaid = 0;
+                    
+                    if (!snapshot.exists()) {
+                        totalAllElement.innerText = "0.00";
+                        totalPaidElement.innerText = "0.00";
+                        totalRemainElement.innerText = "0.00";
+                        loader.style.display = "none";
+                        saveToLocalStorage("totalsCache", {
+                            totalInvoices: totalInvoices,
+                            totalPaid: totalPaid,
+                            totalRemain: 0
+                        });
+                        return;
+                    }
+                    
+                    snapshot.forEach(clientSnapshot => {
+                        clientSnapshot.forEach(invoiceSnapshot => {
+                            const invoice = invoiceSnapshot.val();
+                            
+                            if (invoice.isPayment) {
+                                const amount = Number(convertArabicToEnglishNumbers(String(invoice.amount))) || 0;
+                                if (isNaN(amount)) {
+                                    console.error("Invalid amount value:", invoice.amount);
+                                    return;
+                                }
+                                totalPaid += amount;
+                            } else {
+                                const total = Number(convertArabicToEnglishNumbers(String(invoice.total))) || 0;
+                                if (isNaN(total)) {
+                                    console.error("Invalid total value:", invoice.total);
+                                    return;
+                                }
+                                totalInvoices += total;
+                            }
+                        });
+                    });
+                    
+                    const totalRemaining = totalInvoices - totalPaid;
+                    
+                    if (isNaN(totalInvoices) || isNaN(totalPaid) || isNaN(totalRemaining)) {
+                        console.error("Invalid total values:", totalInvoices, totalPaid, totalRemaining);
+                        showAlert("خطأ", "البيانات تحتوي على قيم غير صالحة", "error");
+                        totalAllElement.innerText = "0.00";
+                        totalPaidElement.innerText = "0.00";
+                        totalRemainElement.innerText = "0.00";
+                    } else {
+                        totalAllElement.innerText = totalInvoices.toFixed(2);
+                        totalPaidElement.innerText = totalPaid.toFixed(2);
+                        totalRemainElement.innerText = totalRemaining.toFixed(2);
+                        saveToLocalStorage("totalsCache", {
+                            totalInvoices: totalInvoices,
+                            totalPaid: totalPaid,
+                            totalRemain: totalRemaining
+                        });
+                    }
+                    
+                    loader.style.display = "none";
+                }).catch(error => {
+                    console.error("Error calculating totals:", error);
+                    showAlert("خطأ", "خطأ أثناء حساب الإحصائيات: " + error.message, "error");
+                    totalAllElement.innerText = "0.00";
+                    totalPaidElement.innerText = "0.00";
+                    totalRemainElement.innerText = "0.00";
+                    loader.style.display = "none";
+                });
+            }
+            
+            // Search clients
+            function searchClients() {
+                const searchBox = document.getElementById("searchBox");
+                if (!searchBox) {
+                    console.error("Search box not found");
+                    return;
+                }
+                
+                const searchTerm = searchBox.value.trim();
+                window.loadClients(searchTerm, currentFilter);
+            }
+            
+            // Update notifications
+            function updateNotifications() {
+                const dropdown = document.getElementById("notificationDropdown");
+                const count = document.getElementById("notificationCount");
+                
+                if (!dropdown || !count) {
+                    console.error("Notification elements not found");
+                    showAlert("خطأ", "تعذر العثور على عناصر الإشعارات", "error");
+                    return;
+                }
+                
+                count.innerText = notifications.length;
+                dropdown.innerHTML = "";
+                
+                if (notifications.length === 0) {
+                    dropdown.innerHTML = '<div class="notification-item">لا يوجد عملاء بمديونية متأخرة</div>';
+                } else {
+                    notifications.forEach(notification => {
+                        const item = document.createElement("div");
+                        item.className = "notification-item";
+                        item.innerHTML = `<strong>${notification.name}</strong><br>المتبقي: ${notification.remaining.toFixed(2)} جنيه<br>عمر المديونية: ${notification.debtAge} يوم`;
+                        item.onclick = () => showInvoices(notification.id, notification.name);
+                        dropdown.appendChild(item);
+                    });
+                }
+            }
+            
+            // Global variables
+            let notifications = [];
+            let clientsData = null;
+            let currentClientId = "";
+            let currentClientName = "";
+            let isLoggedIn = false;
+            let currentFilter = "debt";
+            
+            // Global functions
+            window.loadClients = function(searchTerm = "", filterType = currentFilter) {
+                const loader = document.getElementById("clientsLoader");
+                
+                if (!loader) {
+                    console.error("Clients loader not found");
+                    showAlert("خطأ", "تعذر العثور على عنصر التحميل", "error");
+                    return;
+                }
+                
+                if (!navigator.onLine) {
+                    const cachedClients = getFromLocalStorage("clientsCache");
+                    if (cachedClients) {
+                        clientsData = cachedClients;
+                        loadClients(searchTerm, filterType);
+                        showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
+                    } else {
+                        showAlert("خطأ", "لا يوجد اتصال بالإنترنت ولا توجد بيانات مخزنة", "error");
+                    }
+                    return;
+                }
+                
+                loader.style.display = "block";
+                notifications = [];
+                
+                db.ref("clients").once("value").then(snapshot => {
+                    clientsData = snapshot.val();
+                    saveToLocalStorage("clientsCache", clientsData);
+                    loadClients(searchTerm, filterType);
+                    updateNotifications();
+                }).catch(error => {
+                    console.error("Error loading clients:", error);
+                    loader.style.display = "none";
+                    showAlert("خطأ", "خطأ أثناء تحميل العملاء: " + error.message, "error");
+                });
+            };
+            
+            window.toggleMenu = function() {
+                const navbar = document.getElementById("navbar");
+                const backdrop = document.getElementById("sidebarBackdrop");
+                
+                if (!navbar || !backdrop) {
+                    console.error("Navbar or backdrop not found");
+                    showAlert("خطأ", "تعذر العثور على عناصر التنقل", "error");
+                    return;
+                }
+                
+                navbar.classList.toggle("open");
+                backdrop.classList.toggle("open");
+            };
+            
+            window.toggleNotifications = function() {
+                const dropdown = document.getElementById("notificationDropdown");
+                
+                if (!dropdown) {
+                    console.error("Notification dropdown not found");
+                    showAlert("خطأ", "تعذر العثور على قائمة الإشعارات", "error");
+                    return;
+                }
+                
+                dropdown.classList.toggle("open");
+            };
+            
+            window.debouncedSearchClients = _.debounce(searchClients, 300);
+            
+            window.checkLogin = function() {
+                const userField = document.getElementById("loginUser");
+                const passField = document.getElementById("loginPass");
+                
+                if (!userField || !passField) {
+                    console.error("Login inputs not found");
+                    showAlert("خطأ", "تعذر العثور على حقول تسجيل الدخول", "error");
+                    return;
+                }
+                
+                const email = userField.value.trim();
+                const password = passField.value.trim();
+                
+                if (!email || !password) {
+                    showAlert("خطأ", "يرجى إدخال البريد الإلكتروني وكلمة المرور", "error");
+                    return;
+                }
+                
+                firebase.auth().signInWithEmailAndPassword(email, password).then(() => {
+                    isLoggedIn = true;
+                    
+                    const loginScreen = document.getElementById("loginScreen");
+                    const navbar = document.getElementById("navbar");
+                    const menuToggle = document.getElementById("menuToggle");
+                    const statsBox = document.getElementById("statsBox");
+                    const addClientBox = document.getElementById("addClientBox");
+                    const clientsSection = document.getElementById("clientsSection");
+                    
+                    if (!loginScreen || !navbar || !menuToggle || !statsBox || !addClientBox || !clientsSection) {
+                        console.error("Required DOM elements not found");
+                        showAlert("خطأ", "تعذر العثور على عناصر الصفحة", "error");
+                        return;
+                    }
+                    
+                    loginScreen.style.display = "none";
+                    navbar.style.display = "flex";
+                    menuToggle.style.display = window.innerWidth < 768 ? "block" : "none";
+                    statsBox.style.display = "block";
+                    addClientBox.style.display = "block";
+                    clientsSection.style.display = "block";
+                    
+                    window.loadClients();
+                    calculateTotals();
+                    
+                    showAlert("مرحبًا!", "تم تسجيل الدخول بنجاح.", "success");
+                    
+                    userField.value = "";
+                    passField.value = "";
+                }).catch(error => {
+                    console.error("Login error:", error);
+                    
+                    if (error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
+                        showAlert("خطأ", "كلمة المرور أو اسم المستخدم غير صحيح", "error");
+                    } else if (error.code === "auth/too-many-requests") {
+                        showAlert("خطأ", "تم حظر الحساب مؤقتًا بسبب محاولات تسجيل دخول متكررة. يرجى المحاولة لاحقًا أو إعادة تعيين كلمة المرور.", "error");
+                    } else {
+                        showAlert("خطأ", "خطأ أثناء تسجيل الدخول: " + error.message, "error");
+                    }
+                });
+            };
+            
+            window.goToHomePage = function() {
+                if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
+                
+                currentClientId = "";
+                currentClientName = "";
+                
+                const invoiceBox = document.getElementById("invoiceBox");
+                const addInvoiceBtn = document.getElementById("addInvoiceBtn");
+                const collectBtn = document.getElementById("collectBtn");
+                const statsBox = document.getElementById("statsBox");
+                const addClientBox = document.getElementById("addClientBox");
+                const clientsSection = document.getElementById("clientsSection");
+                const clientsLoader = document.getElementById("clientsLoader");
+                
+                if (!invoiceBox || !addInvoiceBtn || !collectBtn || !statsBox || !addClientBox || !clientsSection || !clientsLoader) {
+                    console.error("Required DOM elements not found in goToHomePage");
+                    showAlert("خطأ", "تعذر العثور على عناصر الصفحة", "error");
+                    return;
+                }
+                
+                invoiceBox.style.display = "none";
+                addInvoiceBtn.disabled = true;
+                collectBtn.disabled = true;
+                statsBox.style.display = "block";
+                addClientBox.style.display = "block";
+                clientsSection.style.display = "block";
+                clientsLoader.style.display = "block";
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById("navbar").classList.remove("open");
+                    document.getElementById("sidebarBackdrop").classList.remove("open");
+                }
+                
+                setTimeout(() => {
+                    window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                    calculateTotals();
+                    showAlert("تم", "تم العودة إلى الصفحة الرئيسية!", "success");
+                }, 100);
+            };
+            
+            window.refreshPage = function() {
+                if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
+                
+                const statsLoader = document.getElementById("statsLoader");
+                const clientsLoader = document.getElementById("clientsLoader");
+                
+                if (!statsLoader || !clientsLoader) {
+                    console.error("Loaders not found in refreshPage");
+                    showAlert("خطأ", "تعذر العثور على عناصر التحميل", "error");
+                    return;
+                }
+                
+                statsLoader.style.display = "block";
+                clientsLoader.style.display = "block";
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById("navbar").classList.remove("open");
+                    document.getElementById("sidebarBackdrop").classList.remove("open");
+                }
+                
+                setTimeout(() => {
+                    window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                    calculateTotals();
+                    
+                    if (currentClientId) {
+                        loadInvoices();
+                    }
+                    
+                    showAlert("تم التحديث", "تم تحديث الصفحة بنجاح!", "success");
+                }, 100);
+            };
+            
+            window.goToSalaries = function() {
+                window.location.href = "https://sunsetchat.yoo7.com/h107-page";
+            };
+            
+            window.logout = function() {
+                firebase.auth().signOut().then(() => {
+                    isLoggedIn = false;
+                    currentClientId = "";
+                    currentClientName = "";
+                    currentFilter = "debt";
+                    
+                    const loginScreen = document.getElementById("loginScreen");
+                    const navbar = document.getElementById("navbar");
+                    const menuToggle = document.getElementById("menuToggle");
+                    const backdrop = document.getElementById("sidebarBackdrop");
+                    const statsBox = document.getElementById("statsBox");
+                    const addClientBox = document.getElementById("addClientBox");
+                    const clientsSection = document.getElementById("clientsSection");
+                    const invoiceBox = document.getElementById("invoiceBox");
+                    const loginUser = document.getElementById("loginUser");
+                    const loginPass = document.getElementById("loginPass");
+                    const searchBox = document.getElementById("searchBox");
+                    const debtClientsBtn = document.getElementById("debtClientsBtn");
+                    const allClientsBtn = document.getElementById("allClientsBtn");
+                    const officesBtn = document.getElementById("officesBtn");
+                    
+                    if (!loginScreen || !navbar || !menuToggle || !backdrop || !statsBox || !addClientBox || !clientsSection || !invoiceBox || !loginUser || !loginPass || !searchBox || !debtClientsBtn || !allClientsBtn || !officesBtn) {
+                        console.error("Required DOM elements not found in logout");
+                        showAlert("خطأ", "تعذر العثور على عناصر الصفحة", "error");
+                        return;
+                    }
+                    
+                    loginScreen.style.display = "flex";
+                    navbar.style.display = "none";
+                    menuToggle.style.display = "none";
+                    backdrop.style.display = "none";
+                    statsBox.style.display = "none";
+                    addClientBox.style.display = "none";
+                    clientsSection.style.display = "none";
+                    invoiceBox.style.display = "none";
+                    
+                    loginUser.value = "";
+                    loginPass.value = "";
+                    searchBox.value = "";
+                    
+                    debtClientsBtn.classList.add("active");
+                    allClientsBtn.classList.remove("active");
+                    officesBtn.classList.remove("active");
+                    
+                    showAlert("تم الخروج", "تم تسجيل الخروج بنجاح!", "success");
+                }).catch(error => {
+                    console.error("Logout error:", error);
+                    showAlert("خطأ", "خطأ أثناء تسجيل الخروج: " + error.message, "error");
+                });
+            };
+            
+            window.closeInvoiceModal = function() {
+                const modal = document.getElementById("invoiceModal");
+                
+                if (!modal) {
+                    console.error("Invoice modal not found");
+                    return;
+                }
+                
+                modal.style.display = "none";
+                document.getElementById("stepSelectType").style.display = "block";
+                document.getElementById("bannerForm").style.display = "none";
+                document.getElementById("manualForm").style.display = "none";
+                document.getElementById("bannerType").value = "بنر";
+                document.getElementById("length").value = "";
+                document.getElementById("width").value = "";
+                document.getElementById("price").value = "";
+                document.getElementById("bannerDesc").value = "";
+                document.getElementById("desc").value = "";
+                document.getElementById("qty").value = "";
+                document.getElementById("unitPrice").value = "";
+            };
+            
+            window.closeInvoicesModal = function() {
+                const modal = document.getElementById("invoicesModal");
+                
+                if (!modal) {
+                    console.error("Invoices modal not found");
+                    return;
+                }
+                
+                modal.style.display = "none";
+                document.getElementById("modalClientName").innerText = "";
+                document.getElementById("modalInvoiceTable").querySelector("tbody").innerHTML = "";
+                document.getElementById("modalTotalInvoices").innerText = "0.00";
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById("navbar").classList.remove("open");
+                    document.getElementById("sidebarBackdrop").classList.remove("open");
+                }
+            };
+            
+            window.addClient = function() {
+                const name = document.getElementById("clientName").value.trim();
+                let phone = document.getElementById("clientPhone").value.trim();
+                const clientType = document.getElementById("clientType").value;
+                
+                phone = convertArabicToEnglishNumbers(phone);
+                phone = phone.replace(/\D/g, "");
+                
+                if (!name || !phone || !clientType) {
+                    showAlert("خطأ", "يرجى إدخال الاسم، رقم الهاتف، ونوع العميل", "error");
+                    return;
+                }
+                
+                if (!/^\d{11}$/.test(phone)) {
+                    showAlert("خطأ", "رقم الهاتف يجب أن يكون 11 رقمًا", "error");
+                    return;
+                }
+                
+                if (!navigator.onLine) {
+                    showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                    return;
+                }
+                
+                db.ref("clients").orderByChild("name").equalTo(name).once("value").then(snapshot => {
+                    if (snapshot.exists()) {
+                        showAlert("خطأ", "هذا العميل تمت إضافته من قبل!", "error");
+                    } else {
+                        db.ref("clients").push({
+                            name: name,
+                            phone: phone,
+                            clientType: clientType
+                        }).then(() => {
+                            document.getElementById("clientName").value = "";
+                            document.getElementById("clientPhone").value = "";
+                            document.getElementById("clientType").value = "مكتب";
+                            
+                            showAlert("تم بنجاح!", "تم إضافة العميل بنجاح.", "success");
+                            window.loadClients();
+                            updateNotifications();
+                        }).catch(error => {
+                            console.error("Error adding client:", error);
+                            showAlert("خطأ", "خطأ أثناء إضافة العميل: " + error.message, "error");
+                        });
+                    }
+                }).catch(error => {
+                    console.error("Error checking client existence:", error);
+                    showAlert("خطأ", "خطأ أثناء التحقق من وجود العميل: " + error.message, "error");
+                });
+            };
+            
+            window.filterClients = function(filterType) {
+                currentFilter = filterType;
+                
+                const debtClientsBtn = document.getElementById("debtClientsBtn");
+                const allClientsBtn = document.getElementById("allClientsBtn");
+                const officesBtn = document.getElementById("officesBtn");
+                
+                if (!debtClientsBtn || !allClientsBtn || !officesBtn) {
+                    console.error("Filter buttons not found");
+                    return;
+                }
+                
+                debtClientsBtn.classList.toggle("active", filterType === "debt");
+                allClientsBtn.classList.toggle("active", filterType === "all");
+                officesBtn.classList.toggle("active", filterType === "office");
+                
+                searchClients();
+            };
+            
+            window.deleteClient = function(clientId) {
+                if (!navigator.onLine) {
+                    showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                    return;
+                }
+                
+                // إضافة نافذة تأكيد قبل الحذف
+                Swal.fire({
+                    title: "تأكيد الحذف",
+                    text: "هل أنت متأكد من حذف العميل وجميع فواتيره؟",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "نعم، احذف",
+                    cancelButtonText: "إلغاء",
+                    customClass: {
+                        confirmButton: "swal-button",
+                        cancelButton: "swal-button"
+                    },
+                    zIndex: 30000 // جعل النافذة في المقدمة
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        db.ref("clients/" + clientId).remove();
+                        db.ref("invoices/" + clientId).remove();
+                        
+                        if (currentClientId === clientId) {
+                            currentClientId = "";
+                            currentClientName = "";
+                            document.getElementById("invoicesModal").style.display = "none";
+                            document.getElementById("modalAddInvoiceBtn").disabled = true;
+                            document.getElementById("modalCollectBtn").disabled = true;
+                        }
+                        
+                        window.loadClients();
+                        updateNotifications();
+                        calculateTotals();
+                        
+                        showAlert("تم الحذف", "تم حذف العميل بنجاح!", "success");
+                    }
+                });
+            };
+            
+            window.showInvoices = function(clientId, clientName) {
+                currentClientId = clientId;
+                currentClientName = clientName;
+                
+                const modal = document.getElementById("invoicesModal");
+                const modalClientName = document.getElementById("modalClientName");
+                const modalAddInvoiceBtn = document.getElementById("modalAddInvoiceBtn");
+                const modalCollectBtn = document.getElementById("modalCollectBtn");
+                
+                if (!modal || !modalClientName || !modalAddInvoiceBtn || !modalCollectBtn) {
+                    console.error("Invoices modal elements not found");
+                    showAlert("خطأ", "تعذر العثور على عناصر نافذة الفواتير", "error");
+                    return;
+                }
+                
+                modal.style.display = "flex";
+                modalClientName.innerText = clientName;
+                modalAddInvoiceBtn.disabled = false;
+                modalCollectBtn.disabled = false;
+                
+                loadInvoices();
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById("navbar").classList.remove("open");
+                    document.getElementById("sidebarBackdrop").classList.remove("open");
+                }
+            };
+            
+            window.deleteInvoice = function(invoiceId) {
+                if (!navigator.onLine) {
+                    showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                    return;
+                }
+                
+                // إضافة نافذة تأكيد قبل الحذف
+                Swal.fire({
+                    title: "تأكيد الحذف",
+                    text: "هل أنت متأكد من حذف هذه الفاتورة/التحصيل؟",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "نعم، احذف",
+                    cancelButtonText: "إلغاء",
+                    customClass: {
+                        confirmButton: "swal-button",
+                        cancelButton: "swal-button"
+                    },
+                    zIndex: 30000 // جعل النافذة في المقدمة
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        db.ref("invoices/" + currentClientId + "/" + invoiceId).once("value").then(snapshot => {
+                            const invoice = snapshot.val();
+                            
+                            db.ref("invoices/" + currentClientId + "/" + invoiceId).remove().then(() => {
+                                if (invoice.isPayment) {
+                                    redistributePayments();
+                                    showAlert("تم الحذف", "تم حذف عملية الدفع بنجاح!", "success");
+                                } else {
+                                    loadInvoices();
+                                    showAlert("تم الحذف", "تم حذف الفاتورة بنجاح!", "success");
+                                }
+                                
+                                window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                                updateNotifications();
+                            }).catch(error => {
+                                console.error("Error deleting invoice:", error);
+                                showAlert("خطأ", "خطأ أثناء حذف السجل: " + error.message, "error");
+                            });
+                        }).catch(error => {
+                            console.error("Error fetching invoice for deletion:", error);
+                            showAlert("خطأ", "خطأ أثناء استرجاع السجل: " + error.message, "error");
+                        });
+                    }
+                });
+            };
+            
+            window.openInvoiceModal = function() {
+                if (!currentClientId) {
+                    showAlert("خطأ", "يرجى اختيار عميل أولاً", "error");
+                    return;
+                }
+                
+                const modal = document.getElementById("invoiceModal");
+                
+                if (!modal) {
+                    console.error("Invoice modal not found");
+                    return;
+                }
+                
+                modal.style.display = "flex";
+                document.getElementById("stepSelectType").style.display = "block";
+                document.getElementById("bannerForm").style.display = "none";
+                document.getElementById("manualForm").style.display = "none";
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById("navbar").classList.remove("open");
+                    document.getElementById("sidebarBackdrop").classList.remove("open");
+                }
+            };
+            
+            window.selectBanner = function(isBanner) {
+                document.getElementById("stepSelectType").style.display = "none";
+                document.getElementById("bannerForm").style.display = isBanner ? "block" : "none";
+                document.getElementById("manualForm").style.display = isBanner ? "none" : "block";
+            };
+            
+            window.backToType = function() {
+                document.getElementById("stepSelectType").style.display = "block";
+                document.getElementById("bannerForm").style.display = "none";
+                document.getElementById("manualForm").style.display = "none";
+            };
+            
+            window.saveBannerInvoice = function() {
+                if (!navigator.onLine) {
+                    showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                    return;
+                }
+                
+                const bannerType = document.getElementById("bannerType").value;
+                const bannerDesc = document.getElementById("bannerDesc").value.trim();
+                const length = parseFloat(document.getElementById("length").value);
+                const width = parseFloat(document.getElementById("width").value);
+                const price = parseFloat(document.getElementById("price").value);
+                
+                if (!length || !width || !price || length <= 0 || width <= 0 || price <= 0) {
+                    showAlert("خطأ", "يرجى إدخال قيم صحيحة وموجبة للطول، العرض، والسعر", "error");
+                    return;
+                }
+                
+                const qty = parseInt(document.getElementById("bannerQty").value);
+                
+                if (!qty || qty <= 0) {
+                    showAlert("خطأ", "من فضلك أدخل عدد صحيح أكبر من صفر", "error");
+                    return;
+                }
+                
+                const area = length * width;
+                const totalArea = (area * qty).toFixed(2);
+                const total = (totalArea * price).toFixed(2);
+                const date = getCurrentDate();
+                
+                // دمج اسم الخامة والوصف معًا
+                let finalDesc = bannerType;
+                if (bannerDesc) {
+                    finalDesc += ` (${bannerDesc})`;
+                }
+                
+                const invoice = {
+                    date: date,
+                    bannerType: bannerType,
+                    bannerDesc: bannerDesc,
+                    desc: finalDesc,
+                    length: length.toFixed(2),
+                    width: width.toFixed(2),
+                    qty: qty,
+                    price: price,
+                    total: total,
+                    paid: "0.00",
+                    remaining: total,
+                    isPayment: false
+                };
+                
+                db.ref("invoices/" + currentClientId).push(invoice).then(() => {
+                    console.log(`Invoice saved for client ${currentClientId}:`, invoice);
+                    
+                    document.getElementById("invoiceModal").style.display = "none";
+                    document.getElementById("length").value = "";
+                    document.getElementById("width").value = "";
+                    document.getElementById("price").value = "";
+                    document.getElementById("bannerDesc").value = "";
+                    
+                    loadInvoices();
+                    window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                    updateNotifications();
+                    
+                    showAlert("تم بنجاح!", "تم حفظ الفاتورة بنجاح!", "success");
+                }).catch(error => {
+                    console.error("Error saving banner invoice:", error);
+                    showAlert("خطأ", "خطأ أثناء حفظ الفاتورة: " + error.message, "error");
+                });
+            };
+            
+            window.saveManualInvoice = function() {
+                if (!navigator.onLine) {
+                    showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                    return;
+                }
+                
+                const desc = document.getElementById("desc").value.trim();
+                let qty = document.getElementById("qty").value.trim();
+                let unitPrice = document.getElementById("unitPrice").value.trim();
+                
+                qty = convertArabicToEnglishNumbers(qty);
+                qty = qty.replace(/\D/g, "");
+                
+                unitPrice = convertArabicToEnglishNumbers(unitPrice);
+                unitPrice = unitPrice.replace(/[^\d.]/g, "");
+                
+                const quantity = parseFloat(qty);
+                const price = parseFloat(unitPrice);
+                
+                if (!desc || isNaN(quantity) || isNaN(price) || quantity <= 0 || price <= 0) {
+                    showAlert("خطأ", "يرجى إدخال وصف وكمية وسعر صحيحين وموجبين", "error");
+                    return;
+                }
+                
+                const total = (quantity * price).toFixed(2);
+                const date = getCurrentDate();
+                
+                const invoice = {
+                    date: date,
+                    desc: desc,
+                    qty: quantity,
+                    price: price.toFixed(2),
+                    total: total,
+                    paid: "0.00",
+                    remaining: total,
+                    isPayment: false
+                };
+                
+                db.ref("invoices/" + currentClientId).push(invoice).then(() => {
+                    console.log(`Manual invoice saved for client ${currentClientId}:`, invoice);
+                    
+                    document.getElementById("invoiceModal").style.display = "none";
+                    document.getElementById("desc").value = "";
+                    document.getElementById("qty").value = "";
+                    document.getElementById("unitPrice").value = "";
+                    
+                    loadInvoices();
+                    window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                    updateNotifications();
+                    
+                    showAlert("تم بنجاح!", "تم حفظ الفاتورة بنجاح!", "success");
+                }).catch(error => {
+                    console.error("Error saving manual invoice:", error);
+                    showAlert("خطأ", "خطأ أثناء حفظ الفاتورة: " + error.message, "error");
+                });
+            };
+            
+            window.openCollectionModal = function() {
+                if (!currentClientId) {
+                    showAlert("خطأ", "يرجى اختيار عميل أولاً", "error");
+                    return;
+                }
+                
+                const modal = document.getElementById("collectionModal");
+                
+                if (!modal) {
+                    console.error("Collection modal not found");
+                    return;
+                }
+                
+                modal.style.display = "flex";
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById("navbar").classList.remove("open");
+                    document.getElementById("sidebarBackdrop").classList.remove("open");
+                }
+            };
+            
+            window.closeCollectionModal = function() {
+                const modal = document.getElementById("collectionModal");
+                
+                if (!modal) {
+                    console.error("Collection modal not found");
+                    return;
+                }
+                
+                modal.style.display = "none";
+                document.getElementById("collectionAmount").value = "";
+                document.getElementById("collectionDesc").value = "";
+            };
+            
+            window.processCollection = function() {
+                if (!navigator.onLine) {
+                    showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                    return;
+                }
+                
+                const desc = document.getElementById("collectionDesc").value.trim();
+                const amount = parseFloat(document.getElementById("collectionAmount").value);
+                
+                if (!amount || amount <= 0 || isNaN(amount)) {
+                    showAlert("خطأ", "يرجى إدخال مبلغ صحيح وموجب", "error");
+                    return;
+                }
+                
+                if (!desc) {
+                    showAlert("خطأ", "يرجى إدخال وصف لعملية التحصيل", "error");
+                    return;
+                }
+                
+                const date = getCurrentDate() + "T" + new Date().toLocaleTimeString("en-US", { hour12: false });
+                const loader = document.getElementById("modalInvoicesLoader");
+                
+                if (!loader) {
+                    console.error("Modal invoices loader not found");
+                    return;
+                }
+                
+                loader.style.display = "block";
+                
+                db.ref("invoices/" + currentClientId).once("value").then(snapshot => {
+                    let remainingAmount = amount;
+                    const updates = {};
+                    const invoices = [];
+                    
+                    // Collect all invoices with remaining amounts
+                    if (snapshot.exists()) {
+                        snapshot.forEach(childSnapshot => {
+                            const invoice = childSnapshot.val();
+                            
+                            if (!invoice.isPayment) {
+                                const total = Number(invoice.total) || 0;
+                                const paid = Number(invoice.paid) || 0;
+                                const remaining = Number(invoice.remaining) || 0;
+                                
+                                if (isNaN(total) || isNaN(paid) || isNaN(remaining)) {
+                                    console.warn(`Invalid invoice data for client ${currentClientId}, invoice ${childSnapshot.key}:`, invoice);
+                                    return;
+                                }
+                                
+                                if (remaining > 0) {
+                                    invoices.push({
+                                        key: childSnapshot.key,
+                                        total: total,
+                                        paid: paid,
+                                        remaining: remaining,
+                                        date: invoice.date
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Sort invoices by date (oldest first)
+                    invoices.sort((a, b) => {
+                        const dateA = new Date(a.date) || parseArabicDate(a.date) || new Date();
+                        const dateB = new Date(b.date) || parseArabicDate(b.date) || new Date();
+                        return dateA - dateB;
+                    });
+                    
+                    // Distribute payment to oldest invoices first
+                    invoices.forEach(invoice => {
+                        if (remainingAmount > 0 && invoice.remaining > 0) {
+                            const paymentForInvoice = Math.min(invoice.remaining, remainingAmount);
+                            updates[`invoices/${currentClientId}/${invoice.key}/paid`] = (invoice.paid + paymentForInvoice).toFixed(2);
+                            updates[`invoices/${currentClientId}/${invoice.key}/remaining`] = (invoice.remaining - paymentForInvoice).toFixed(2);
+                            remainingAmount -= paymentForInvoice;
+                        }
+                    });
+                    
+                    // Create payment record
+                    const payment = {
+                        date: date,
+                        desc: desc,
+                        amount: amount.toFixed(2),
+                        isPayment: true
+                    };
+                    
+                    console.log("Saving payment and updating invoices:", payment, updates);
+                    
+                    // Save payment record and update invoices
+                    db.ref("invoices/" + currentClientId).push(payment).then(() => {
+                        db.ref().update(updates).then(() => {
+                            closeCollectionModal();
+                            loadInvoices();
+                            window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                            updateNotifications();
+                            
+                            showAlert("تم بنجاح!", "تم تحصيل المبلغ بنجاح!", "success");
+                        }).catch(error => {
+                            console.error("Error updating invoices:", error);
+                            showAlert("خطأ", "خطأ أثناء تحصيل المبلغ: " + error.message, "error");
+                            loader.style.display = "none";
+                        });
+                    }).catch(error => {
+                        console.error("Error saving payment entry:", error);
+                        showAlert("خطأ", "خطأ أثناء تسجيل التحصيل: " + error.message, "error");
+                        loader.style.display = "none";
+                    });
+                }).catch(error => {
+                    console.error("Error loading invoices for collection:", error);
+                    showAlert("خطأ", "خطأ أثناء تحميل الفواتير: " + error.message, "error");
+                    loader.style.display = "none";
+                });
+            };
+            
+            window.shareViaWhatsApp = function() {
+                if (!currentClientId) {
+                    showAlert("خطأ", "يرجى اختيار عميل أولاً", "error");
+                    return;
+                }
+                
+                db.ref(`clients/${currentClientId}`).once("value").then(snapshot => {
+                    const client = snapshot.val();
+                    const phoneNumber = client ? client.phone : null;
+                    
+                    if (!phoneNumber) {
+                        showAlert("خطأ", "رقم الهاتف غير متوفر لهذا العميل", "error");
+                        return;
+                    }
+                    
+                    // Create a temporary div to render the invoice
+                    const tempDiv = document.createElement("div");
+                    tempDiv.style.width = "190mm";
+                    tempDiv.style.margin = "10mm auto";
+                    tempDiv.style.fontFamily = "'Tajawal', sans-serif";
+                    tempDiv.style.direction = "rtl";
+                    tempDiv.style.background = "#fff";
+                    tempDiv.style.padding = "10mm";
+                    
+                    tempDiv.innerHTML = `
+                        <h3 style="text-align: center; margin-bottom: 15mm; border-bottom: 2px solid #0d3b66; padding-bottom: 5mm;">
+                          مطبعة طارق أبوهمام<br>اسم العميل: ${currentClientName}<br>نوع العميل: ${client.clientType}<br>رقم الهاتف: ${phoneNumber}<br>تاريخ التقرير: ${formatDate(getCurrentDate())}
+                        </h3>
+                        ${document.getElementById("modalInvoiceTable").outerHTML}
+                        <h3 style="font-size: 12pt; text-align: left; margin-top: 5mm;">الإجمـــالي: ${document.getElementById("modalTotalInvoices").innerText} جنيه</h3>
+                        <div style="text-align: center; font-size: 8pt; color: #666; border-top: 1px solid #0d3b66; padding-top: 2mm; margin-top: 10mm;">
+                          شكراً لتعاملك معنا - مطابع طارق أبوهمام - للتواصل: 01008110848
+                        </div>
+                    `;
+                    
+                    // Remove action buttons from the table
+                    const table = tempDiv.querySelector("table");
+                    const headers = table.querySelectorAll("th");
+                    const rows = table.querySelectorAll("tr");
+                    
+                    // Remove the last header (actions)
+                    if (headers.length > 0) {
+                        headers[headers.length - 1].remove();
+                    }
+                    
+                    // Remove action cells from each row
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll("td");
+                        if (cells.length > 0) {
+                            // Remove the last two cells (edit and delete buttons)
+                            cells[cells.length - 1].remove();
+                            if (cells.length > 0) {
+                                cells[cells.length - 1].remove();
+                            }
+                        }
+                    });
+                    
+                    // Add the temp div to the body (but hide it)
+                    document.body.appendChild(tempDiv);
+                    tempDiv.style.position = "absolute";
+                    tempDiv.style.left = "-9999px";
+                    
+                    // Use html2canvas to create an image
+                    html2canvas(tempDiv, {
+                        scale: 2,
+                        useCORS: true
+                    }).then(canvas => {
+                        // Convert canvas to data URL
+                        const imageData = canvas.toDataURL("image/png");
+                        
+                        // Verify the image data is valid
+                        if (!imageData.startsWith("data:image/png")) {
+                            document.body.removeChild(tempDiv);
+                            showAlert("خطأ", "فشل في إنشاء الصورة، يرجى المحاولة مجددًا", "error");
+                            return;
+                        }
+                        
+                        // Create a download link
+                        const downloadLink = document.createElement("a");
+                        downloadLink.href = imageData;
+                        downloadLink.download = `${currentClientName}_فواتير.png`;
+                        downloadLink.click();
+                        
+                        // Remove the temp div
+                        document.body.removeChild(tempDiv);
+                        
+                        showAlert("تم بنجاح!", "تم إنشاء الصورة وتنزيلها بنجاح!", "success");
+                    }).catch(error => {
+                        console.error("Error generating image:", error);
+                        document.body.removeChild(tempDiv);
+                        showAlert("خطأ", "خطأ أثناء إنشاء الصورة: " + error.message, "error");
+                    });
+                }).catch(error => {
+                    console.error("Error fetching client data:", error);
+                    showAlert("خطأ", "خطأ أثناء استرجاع بيانات العميل: " + error.message, "error");
+                });
+            };
+            
+            // Edit Client Functions
+            window.editClient = function(clientId) {
+                db.ref("clients/" + clientId).once("value").then(snapshot => {
+                    const client = snapshot.val();
+                    if (client) {
+                        document.getElementById("editClientName").value = client.name;
+                        document.getElementById("editClientPhone").value = client.phone;
+                        document.getElementById("editClientType").value = client.clientType;
+                        window.currentEditClientId = clientId;
+                        document.getElementById("editClientModal").style.display = "flex";
+                    }
+                }).catch(error => {
+                    console.error("Error fetching client data:", error);
+                    showAlert("خطأ", "خطأ أثناء جلب بيانات العميل: " + error.message, "error");
+                });
+            };
+            
+            window.saveEditedClient = function() {
+                const name = document.getElementById("editClientName").value.trim();
+                let phone = document.getElementById("editClientPhone").value.trim();
+                const clientType = document.getElementById("editClientType").value;
+                phone = convertArabicToEnglishNumbers(phone);
+                phone = phone.replace(/\D/g, "");
+                if (!name || !phone || !clientType) {
+                    showAlert("خطأ", "يرجى إدخال الاسم، رقم الهاتف، ونوع العميل", "error");
+                    return;
+                }
+                if (!/^\d{11}$/.test(phone)) {
+                    showAlert("خطأ", "رقم الهاتف يجب أن يكون 11 رقمًا", "error");
+                    return;
+                }
+                db.ref("clients/" + window.currentEditClientId).update({
+                    name: name,
+                    phone: phone,
+                    clientType: clientType
+                }).then(() => {
+                    closeEditClientModal();
+                    window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                    showAlert("تم بنجاح!", "تم تعديل بيانات العميل بنجاح.", "success");
+                }).catch(error => {
+                    console.error("Error updating client:", error);
+                    showAlert("خطأ", "خطأ أثناء تعديل العميل: " + error.message, "error");
+                });
+            };
+            
+            window.closeEditClientModal = function() {
+                document.getElementById("editClientModal").style.display = "none";
+                window.currentEditClientId = null;
+            };
+            
+            // Edit Invoice Functions
+            window.editInvoice = function(invoiceId) {
+                db.ref("invoices/" + currentClientId + "/" + invoiceId).once("value").then(snapshot => {
+                    const invoice = snapshot.val();
+                    if (invoice) {
+                        window.currentEditInvoiceId = invoiceId;
+                        if (invoice.length !== undefined && invoice.width !== undefined) {
+                            // فاتورة بنر
+                            document.getElementById("editBannerType").value = invoice.bannerType || "بنر";
+                            document.getElementById("editBannerDesc").value = invoice.bannerDesc || "";
+                            document.getElementById("editLength").value = invoice.length;
+                            document.getElementById("editWidth").value = invoice.width;
+                            document.getElementById("editBannerQty").value = invoice.qty;
+                            document.getElementById("editPrice").value = invoice.price;
+                            
+                            document.getElementById("editStepSelectType").style.display = "none";
+                            document.getElementById("editBannerForm").style.display = "block";
+                            document.getElementById("editManualForm").style.display = "none";
+                        } else {
+                            // فاتورة يدوية
+                            document.getElementById("editDesc").value = invoice.desc;
+                            document.getElementById("editQty").value = invoice.qty;
+                            document.getElementById("editUnitPrice").value = invoice.price;
+                            
+                            document.getElementById("editStepSelectType").style.display = "none";
+                            document.getElementById("editBannerForm").style.display = "none";
+                            document.getElementById("editManualForm").style.display = "block";
+                        }
+                        
+                        document.getElementById("editInvoiceModal").style.display = "flex";
+                    }
+                }).catch(error => {
+                    console.error("Error fetching invoice data:", error);
+                    showAlert("خطأ", "خطأ أثناء جلب بيانات الفاتورة: " + error.message, "error");
+                });
+            };
+            
+            window.saveEditedBannerInvoice = function() {
+                const bannerType = document.getElementById("editBannerType").value;
+                const bannerDesc = document.getElementById("editBannerDesc").value.trim();
+                const length = parseFloat(document.getElementById("editLength").value);
+                const width = parseFloat(document.getElementById("editWidth").value);
+                const price = parseFloat(document.getElementById("editPrice").value);
+                const qty = parseInt(document.getElementById("editBannerQty").value);
+                if (!length || !width || !price || length <= 0 || width <= 0 || price <= 0) {
+                    showAlert("خطأ", "يرجى إدخال قيم صحيحة وموجبة للطول، العرض، والسعر", "error");
+                    return;
+                }
+                if (!qty || qty <= 0) {
+                    showAlert("خطأ", "من فضلك أدخل عدد صحيح أكبر من صفر", "error");
+                    return;
+                }
+                const area = length * width;
+                const totalArea = (area * qty).toFixed(2);
+                const total = (totalArea * price).toFixed(2);
+                
+                // دمج اسم الخامة والوصف معًا
+                let finalDesc = bannerType;
+                if (bannerDesc) {
+                    finalDesc += ` (${bannerDesc})`;
+                }
+                
+                db.ref("invoices/" + currentClientId + "/" + window.currentEditInvoiceId).once("value").then(snapshot => {
+                    const invoice = snapshot.val();
+                    const paid = parseFloat(invoice.paid) || 0;
+                    const remaining = (total - paid).toFixed(2);
+                    db.ref("invoices/" + currentClientId + "/" + window.currentEditInvoiceId).update({
+                        bannerType: bannerType,
+                        bannerDesc: bannerDesc,
+                        desc: finalDesc,
+                        length: length.toFixed(2),
+                        width: width.toFixed(2),
+                        qty: qty,
+                        price: price.toFixed(2),
+                        total: total,
+                        paid: paid.toFixed(2),
+                        remaining: remaining
+                    }).then(() => {
+                        closeEditInvoiceModal();
+                        loadInvoices();
+                        window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                        showAlert("تم بنجاح!", "تم تعديل الفاتورة بنجاح.", "success");
+                    }).catch(error => {
+                        console.error("Error updating invoice:", error);
+                        showAlert("خطأ", "خطأ أثناء تعديل الفاتورة: " + error.message, "error");
+                    });
+                }).catch(error => {
+                    console.error("Error fetching invoice for edit:", error);
+                    showAlert("خطأ", "خطأ أثناء جلب بيانات الفاتورة: " + error.message, "error");
+                });
+            };
+            
+            window.saveEditedManualInvoice = function() {
+                const desc = document.getElementById("editDesc").value.trim();
+                let qty = document.getElementById("editQty").value.trim();
+                let unitPrice = document.getElementById("editUnitPrice").value.trim();
+                qty = convertArabicToEnglishNumbers(qty);
+                qty = qty.replace(/\D/g, "");
+                
+                unitPrice = convertArabicToEnglishNumbers(unitPrice);
+                unitPrice = unitPrice.replace(/[^\d.]/g, "");
+                const quantity = parseFloat(qty);
+                const price = parseFloat(unitPrice);
+                if (!desc || isNaN(quantity) || isNaN(price) || quantity <= 0 || price <= 0) {
+                    showAlert("خطأ", "يرجى إدخال وصف وكمية وسعر صحيحين وموجبين", "error");
+                    return;
+                }
+                const total = (quantity * price).toFixed(2);
+                db.ref("invoices/" + currentClientId + "/" + window.currentEditInvoiceId).once("value").then(snapshot => {
+                    const invoice = snapshot.val();
+                    const paid = parseFloat(invoice.paid) || 0;
+                    const remaining = (total - paid).toFixed(2);
+                    db.ref("invoices/" + currentClientId + "/" + window.currentEditInvoiceId).update({
+                        desc: desc,
+                        qty: quantity,
+                        price: price.toFixed(2),
+                        total: total,
+                        paid: paid.toFixed(2),
+                        remaining: remaining
+                    }).then(() => {
+                        closeEditInvoiceModal();
+                        loadInvoices();
+                        window.loadClients(document.getElementById("searchBox").value.trim(), currentFilter);
+                        showAlert("تم بنجاح!", "تم تعديل الفاتورة بنجاح.", "success");
+                    }).catch(error => {
+                        console.error("Error updating invoice:", error);
+                        showAlert("خطأ", "خطأ أثناء تعديل الفاتورة: " + error.message, "error");
+                    });
+                }).catch(error => {
+                    console.error("Error fetching invoice for edit:", error);
+                    showAlert("خطأ", "خطأ أثناء جلب بيانات الفاتورة: " + error.message, "error");
+                });
+            };
+            
+            window.selectEditBanner = function(isBanner) {
+                document.getElementById("editStepSelectType").style.display = "none";
+                document.getElementById("editBannerForm").style.display = isBanner ? "block" : "none";
+                document.getElementById("editManualForm").style.display = isBanner ? "none" : "block";
+            };
+            
+            window.backToEditType = function() {
+                document.getElementById("editStepSelectType").style.display = "block";
+                document.getElementById("editBannerForm").style.display = "none";
+                document.getElementById("editManualForm").style.display = "none";
+            };
+            
+            window.closeEditInvoiceModal = function() {
+                document.getElementById("editInvoiceModal").style.display = "none";
+                window.currentEditInvoiceId = null;
+                
+                document.getElementById("editStepSelectType").style.display = "block";
+                document.getElementById("editBannerForm").style.display = "none";
+                document.getElementById("editManualForm").style.display = "none";
+                
+                document.getElementById("editBannerType").value = "بنر";
+                document.getElementById("editBannerDesc").value = "";
+                document.getElementById("editLength").value = "";
+                document.getElementById("editWidth").value = "";
+                document.getElementById("editBannerQty").value = "";
+                document.getElementById("editPrice").value = "";
+                document.getElementById("editDesc").value = "";
+                document.getElementById("editQty").value = "";
+                document.getElementById("editUnitPrice").value = "";
+            };
+        });
+    </script>
+</body>
+</html>
