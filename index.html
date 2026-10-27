@@ -561,6 +561,38 @@
         #pricingTable td, #pricingTable th { white-space:nowrap; }
         .price-hint { color:#0d3b66; font-size:13px; margin:4px 0; }
 
+
+        /* لوحة التحكم الجديدة */
+        .dashboard-section { display:none; margin:20px; padding:18px; background:#f5f8fc; border-radius:18px; box-shadow:0 8px 30px rgba(13,59,102,.12); }
+        .dashboard-header { display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap; margin-bottom:16px; }
+        .dashboard-header h2 { margin:0; color:#0d3b66; font-size:24px; }
+        .dashboard-header p { margin:4px 0 0; color:#64748b; }
+        .dashboard-layout { display:grid; grid-template-columns:260px minmax(0,1fr) 230px; grid-template-areas:"members center actions"; gap:16px; direction:ltr; align-items:stretch; }
+        .dashboard-panel { background:#fff; border:1px solid #e3ebf5; border-radius:16px; padding:15px; direction:rtl; min-width:0; }
+        .dashboard-members { grid-area:members; }
+        .dashboard-center { grid-area:center; }
+        .dashboard-actions { grid-area:actions; }
+        .dashboard-panel h3 { margin:0 0 12px; color:#0d3b66; font-size:17px; }
+        .dashboard-search { margin-bottom:10px; }
+        .dashboard-member-list { max-height:390px; overflow:auto; }
+        .dashboard-member { display:flex; align-items:center; gap:8px; width:100%; padding:10px; margin:6px 0; border:1px solid #e5edf6; background:#f8fbff; border-radius:10px; text-align:right; color:#0d3b66; cursor:pointer; transition:.2s; }
+        .dashboard-member:hover, .dashboard-member.selected { background:#e6f1ff; border-color:#2d8cff; transform:translateX(-2px); }
+        .dashboard-member strong { display:block; }
+        .dashboard-member small { color:#718096; }
+        .member-avatar { width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; border-radius:50%; background:#0d3b66; color:#fff; font-weight:700; }
+        .dashboard-stat-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+        .dashboard-stat { padding:18px 12px; border-radius:14px; color:#fff; text-align:center; box-shadow:0 8px 18px rgba(13,59,102,.13); }
+        .dashboard-stat h4 { margin:0 0 8px; font-size:14px; opacity:.9; }
+        .dashboard-stat strong { font-size:23px; }
+        .dashboard-stat.blue { background:linear-gradient(135deg,#0d3b66,#1677bd); }
+        .dashboard-stat.green { background:linear-gradient(135deg,#087f5b,#20a878); }
+        .dashboard-stat.orange { background:linear-gradient(135deg,#b45309,#f59e0b); }
+        .dashboard-actions-grid { display:grid; gap:9px; }
+        .dashboard-action { width:100%; margin:0; padding:12px 10px; text-align:right; background:#f8fbff; color:#0d3b66; border:1px solid #dbe7f3; font-weight:700; }
+        .dashboard-action:hover { background:#0d3b66; color:#fff; }
+        .dashboard-selected { margin-top:12px; padding:10px; border-radius:10px; background:#eef6ff; color:#0d3b66; text-align:center; font-weight:700; }
+        @media (max-width:900px) { .dashboard-layout { grid-template-columns:1fr 1fr; grid-template-areas:"center center" "members actions"; } }
+        @media (max-width:600px) { .dashboard-section { margin:10px; padding:12px; } .dashboard-layout { grid-template-columns:1fr; grid-template-areas:"center" "actions" "members"; } .dashboard-stat-grid { grid-template-columns:1fr; } .dashboard-member-list { max-height:260px; } .dashboard-header h2 { font-size:20px; } }
         .carry-forward-row { background:#fff3cd !important; color:#7a4b00; font-weight:700; }
         .carry-forward-row td { border-color:#e7c96a; }
         .carry-forward-summary { background: #e8f4ff; border-right: 4px solid #0d3b66; border-radius: 8px; padding: 12px; margin: 10px 0; color: #0d3b66; font-weight: 700; line-height: 1.9; }
@@ -588,12 +620,46 @@
             <div class=notification-dropdown id=notificationDropdown></div>
         </div>
         <input onkeyup=debouncedSearchClients() placeholder="ابحث عن عميل" id=searchBox type=text />
-        <button onclick=goToHomePage()>الصفحة الرئيسية</button>
+        <button onclick=goToHomePage()>لوحة التحكم</button>
+        <button onclick=goToMembersPage()>👥 قائمة الأعضاء</button>
         <button onclick=refreshPage()>تحديث الصفحة</button>
         <button onclick=goToPricingPage()>قائمة الأسعار</button>
         <button onclick=goToSalaries()>مرتبات</button>
         <button onclick=logout()>تسجيل الخروج</button>
     </div>
+
+    <section id="dashboardSection" class="dashboard-section">
+        <div class="dashboard-header">
+            <div><h2>لوحة الحسابات الرئيسية</h2><p>إدارة الأعضاء والفواتير والتحصيل من مكان واحد</p></div>
+            <button onclick="refreshPage()">↻ تحديث البيانات</button>
+        </div>
+        <div class="dashboard-layout">
+            <aside class="dashboard-panel dashboard-members">
+                <h3>👥 الأعضاء</h3>
+                <input id="dashboardMemberSearch" class="dashboard-search" type="search" placeholder="بحث سريع عن عضو" oninput="renderDashboardMembers(this.value)">
+                <div id="dashboardMembersList" class="dashboard-member-list"><p style="color:#718096;text-align:center">جارٍ تحميل الأعضاء...</p></div>
+            </aside>
+            <main class="dashboard-panel dashboard-center">
+                <h3>📊 الإجمالي الحسابي</h3>
+                <div class="dashboard-stat-grid">
+                    <div class="dashboard-stat blue"><h4>إجمالي الفواتير</h4><strong id="dashTotalAll">0.00</strong><div>جنيه</div></div>
+                    <div class="dashboard-stat green"><h4>إجمالي المحصل</h4><strong id="dashTotalPaid">0.00</strong><div>جنيه</div></div>
+                    <div class="dashboard-stat orange"><h4>إجمالي المتبقي</h4><strong id="dashTotalRemain">0.00</strong><div>جنيه</div></div>
+                </div>
+                <div id="dashboardSelectedMember" class="dashboard-selected">اختر عضوًا من القائمة للبدء</div>
+            </main>
+            <aside class="dashboard-panel dashboard-actions">
+                <h3>⚡ إجراءات سريعة</h3>
+                <div class="dashboard-actions-grid">
+                    <button class="dashboard-action" onclick="openDashboardAddClient()">➕ إضافة عضو</button>
+                    <button class="dashboard-action" onclick="openDashboardInvoice()">🧾 فاتورة جديدة</button>
+                    <button class="dashboard-action" onclick="openDashboardCollection()">💰 تحصيل مبلغ</button>
+                    <button class="dashboard-action" onclick="goToMembersPage()">📋 إدارة الأعضاء</button>
+                    <button class="dashboard-action" onclick="goToPricingPage()">🏷️ قائمة الأسعار</button>
+                </div>
+            </aside>
+        </div>
+    </section>
     <div style=display:none id=statsBox class=box>
         <h3 style=width:100%;text-align:center;color:#0d3b66;margin-bottom:3px>الإحصائيات العامة</h3>
         <div class=loader id=statsLoader></div>
@@ -1554,6 +1620,7 @@
                     }
                     
                     loader.style.display = "none";
+                    syncDashboardTotals();
                 }).catch(error => {
                     console.error("Error calculating totals:", error);
                     showAlert("خطأ", "خطأ أثناء حساب الإحصائيات: " + error.message, "error");
@@ -1561,6 +1628,7 @@
                     totalPaidElement.innerText = "0.00";
                     totalRemainElement.innerText = "0.00";
                     loader.style.display = "none";
+                    syncDashboardTotals();
                 });
             }
             
@@ -1625,6 +1693,7 @@
                     const cachedClients = getFromLocalStorage("clientsCache");
                     if (cachedClients) {
                         clientsData = cachedClients;
+                        renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
                         loadClients(searchTerm, filterType);
                         showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
                     } else {
@@ -1638,6 +1707,7 @@
                 
                 db.ref("clients").once("value").then(snapshot => {
                     clientsData = snapshot.val();
+                    renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
                     saveToLocalStorage("clientsCache", clientsData);
                     loadClients(searchTerm, filterType);
                     updateNotifications();
@@ -1703,8 +1773,9 @@
                     const statsBox = document.getElementById("statsBox");
                     const addClientBox = document.getElementById("addClientBox");
                     const clientsSection = document.getElementById("clientsSection");
+                    const dashboardSection = document.getElementById("dashboardSection");
                     
-                    if (!loginScreen || !navbar || !menuToggle || !statsBox || !addClientBox || !clientsSection) {
+                    if (!loginScreen || !navbar || !menuToggle || !statsBox || !addClientBox || !clientsSection || !dashboardSection) {
                         console.error("Required DOM elements not found");
                         showAlert("خطأ", "تعذر العثور على عناصر الصفحة", "error");
                         return;
@@ -1713,9 +1784,10 @@
                     loginScreen.style.display = "none";
                     navbar.style.display = "flex";
                     menuToggle.style.display = window.innerWidth < 768 ? "block" : "none";
-                    statsBox.style.display = "block";
-                    addClientBox.style.display = "block";
-                    clientsSection.style.display = "block";
+                    dashboardSection.style.display = "block";
+                    statsBox.style.display = "none";
+                    addClientBox.style.display = "none";
+                    clientsSection.style.display = "none";
                     
                     window.loadClients();
                     calculateTotals();
@@ -1744,8 +1816,10 @@
                 currentClientName = "";
                 
                 const invoiceBox = document.getElementById("invoiceBox");
+                const dashboardSection = document.getElementById("dashboardSection");
                 const pricingSection = document.getElementById("pricingSection");
                 if (pricingSection) pricingSection.style.display = "none";
+                if (dashboardSection) dashboardSection.style.display = "block";
                 const addInvoiceBtn = document.getElementById("addInvoiceBtn");
                 const collectBtn = document.getElementById("collectBtn");
                 const statsBox = document.getElementById("statsBox");
@@ -1762,9 +1836,9 @@
                 invoiceBox.style.display = "none";
                 addInvoiceBtn.disabled = true;
                 collectBtn.disabled = true;
-                statsBox.style.display = "block";
-                addClientBox.style.display = "block";
-                clientsSection.style.display = "block";
+                statsBox.style.display = "none";
+                addClientBox.style.display = "none";
+                clientsSection.style.display = "none";
                 clientsLoader.style.display = "block";
                 
                 if (window.innerWidth < 768) {
@@ -1892,9 +1966,62 @@
             window.filterPricing = function(filter) { pricingFilter = filter; document.querySelectorAll("[data-pricing-filter]").forEach(btn => btn.classList.toggle("active", btn.dataset.pricingFilter === filter)); renderPricingTable(); };
             window.goToPricingPage = function() {
                 if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
-                ["statsBox","addClientBox","clientsSection","invoiceBox"].forEach(id => { const el=document.getElementById(id); if(el) el.style.display="none"; });
+                ["dashboardSection","statsBox","addClientBox","clientsSection","invoiceBox"].forEach(id => { const el=document.getElementById(id); if(el) el.style.display="none"; });
                 document.getElementById("pricingSection").style.display = "block";
                 loadPricingCatalog();
+                if (window.innerWidth < 768) { document.getElementById("navbar").classList.remove("open"); document.getElementById("sidebarBackdrop").classList.remove("open"); }
+            };
+
+
+            function syncDashboardTotals() {
+                ["totalAll","totalPaid","totalRemain"].forEach((source, index) => {
+                    const target = document.getElementById(["dashTotalAll","dashTotalPaid","dashTotalRemain"][index]);
+                    const el = document.getElementById(source);
+                    if (target && el) target.innerText = el.innerText;
+                });
+            }
+            window.renderDashboardMembers = function(searchTerm = "") {
+                const list = document.getElementById("dashboardMembersList");
+                if (!list) return;
+                const term = String(searchTerm).trim().toLowerCase();
+                list.innerHTML = "";
+                const entries = Object.entries(clientsData || {}).filter(([id, client]) => !term || String(client.name || "").toLowerCase().includes(term) || String(client.phone || "").includes(term));
+                if (!entries.length) { list.innerHTML = '<p style="color:#718096;text-align:center">لا توجد أعضاء مطابقة</p>'; return; }
+                entries.slice(0, 100).forEach(([id, client]) => {
+                    const button = document.createElement("button"); button.className = "dashboard-member" + (id === currentClientId ? " selected" : "");
+                    button.innerHTML = `<span class="member-avatar">${escapeHtml(String(client.name || "؟").trim().charAt(0))}</span><span><strong>${escapeHtml(client.name || "بدون اسم")}</strong><small>${escapeHtml(client.clientType || "غير محدد")} · ${escapeHtml(client.phone || "بدون هاتف")}</small></span>`;
+                    button.onclick = () => selectDashboardMember(id); list.appendChild(button);
+                });
+            };
+            window.selectDashboardMember = function(clientId) {
+                const client = (clientsData || {})[clientId]; if (!client) return;
+                currentClientId = clientId; currentClientName = client.name || ""; currentClientType = client.clientType || "مكتب";
+                const selected = document.getElementById("dashboardSelectedMember");
+                if (selected) selected.innerHTML = `العضو المختار: <strong>${escapeHtml(currentClientName)}</strong> — ${escapeHtml(currentClientType)}`;
+                renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
+            };
+            window.openDashboardAddClient = function() {
+                document.getElementById("addClientBox").style.display = "block";
+                document.getElementById("clientsSection").style.display = "none";
+                document.getElementById("dashboardSection").style.display = "block";
+                document.getElementById("clientName").focus();
+                document.getElementById("addClientBox").scrollIntoView({behavior:"smooth", block:"center"});
+            };
+            window.openDashboardInvoice = function() {
+                if (!currentClientId) return showAlert("اختر عضوًا", "اختر عضوًا من القائمة أولًا لإضافة الفاتورة", "warning");
+                openInvoiceModal();
+            };
+            window.openDashboardCollection = function() {
+                if (!currentClientId) return showAlert("اختر عضوًا", "اختر عضوًا من القائمة أولًا لتسجيل التحصيل", "warning");
+                openCollectionModal();
+            };
+            window.goToMembersPage = function() {
+                if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
+                const dashboard = document.getElementById("dashboardSection"); if (dashboard) dashboard.style.display = "none";
+                const stats = document.getElementById("statsBox"); if (stats) stats.style.display = "none";
+                const add = document.getElementById("addClientBox"); if (add) add.style.display = "block";
+                const clients = document.getElementById("clientsSection"); if (clients) clients.style.display = "block";
+                window.loadClients(document.getElementById("searchBox").value.trim(), "all");
                 if (window.innerWidth < 768) { document.getElementById("navbar").classList.remove("open"); document.getElementById("sidebarBackdrop").classList.remove("open"); }
             };
 
@@ -1918,6 +2045,7 @@
                     const clientsSection = document.getElementById("clientsSection");
                     const invoiceBox = document.getElementById("invoiceBox");
                     const pricingSection = document.getElementById("pricingSection");
+                    const dashboardSection = document.getElementById("dashboardSection");
                     const loginUser = document.getElementById("loginUser");
                     const loginPass = document.getElementById("loginPass");
                     const searchBox = document.getElementById("searchBox");
@@ -1940,6 +2068,7 @@
                     clientsSection.style.display = "none";
                     invoiceBox.style.display = "none";
                     if (pricingSection) pricingSection.style.display = "none";
+                    if (dashboardSection) dashboardSection.style.display = "none";
                     
                     loginUser.value = "";
                     loginPass.value = "";
