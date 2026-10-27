@@ -736,6 +736,7 @@
                 <button disabled onclick=openInvoiceModal() id=modalAddInvoiceBtn>➕ إضافة فاتورة</button>
                 <button disabled onclick=openCollectionModal() id=modalCollectBtn>تحصيل مبلغ</button>
                 <button onclick=shareViaWhatsApp()>مشاركة عبر WhatsApp</button>
+                <button id="showAllStatementBtn" style="display:none" onclick="toggleStatementView()">📚 عرض كل كشف الحساب (قديم + جديد)</button>
                 <button onclick=closeInvoicesModal()>❌ إغلاق</button>
             </div>
             <div class=loader id=modalInvoicesLoader></div>
@@ -1170,6 +1171,9 @@
                 }
             }
             
+            let currentInvoicesData = null;
+            let showingFullStatement = false;
+
             // Load invoices for a specific client
             function loadInvoices() {
                 const loader = document.getElementById("modalInvoicesLoader");
@@ -1188,7 +1192,9 @@
                 if (!navigator.onLine) {
                     const cachedInvoices = getFromLocalStorage(`invoices_${currentClientId}`);
                     if (cachedInvoices) {
-                        displayInvoices(cachedInvoices);
+                        currentInvoicesData = cachedInvoices;
+                        showingFullStatement = false;
+                        displayInvoices(cachedInvoices, false);
                         showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
                     } else {
                         loader.style.display = "none";
@@ -1200,7 +1206,9 @@
                 db.ref("invoices/" + currentClientId).once("value").then(snapshot => {
                     const invoices = snapshot.val();
                     saveToLocalStorage(`invoices_${currentClientId}`, invoices);
-                    displayInvoices(invoices);
+                    currentInvoicesData = invoices;
+                    showingFullStatement = false;
+                    displayInvoices(invoices, false);
                 }).catch(error => {
                     console.error("Error loading invoices:", error);
                     loader.style.display = "none";
@@ -1233,7 +1241,7 @@
             }
 
             // Display invoices in the modal
-            function displayInvoices(invoices) {
+            function displayInvoices(invoices, showFullStatement = false) {
                 const loader = document.getElementById("modalInvoicesLoader");
                 const tableBody = document.querySelector("#modalInvoiceTable tbody");
                 const totalElement = document.getElementById("modalTotalInvoices");
@@ -1246,16 +1254,35 @@
                 let totalAll = 0;
                 let totalPaid = 0;
                 let latestNewInvoice = null;
+                let latestNewInvoiceId = null;
                 
                 if (!invoices) {
                     loader.style.display = "none";
                     totalElement.innerText = "0.00";
+                    const emptyStatementButton = document.getElementById("showAllStatementBtn");
+                    if (emptyStatementButton) emptyStatementButton.style.display = "none";
+                    const emptySummary = document.getElementById("modalCarryForwardSummary");
+                    if (emptySummary) emptySummary.style.display = "none";
                     return;
                 }
                 
                 tableBody.innerHTML = "";
-                
-                Object.keys(invoices).forEach(invoiceId => {
+                const invoiceKeys = Object.keys(invoices);
+                invoiceKeys.forEach(invoiceId => {
+                    const item = invoices[invoiceId] || {};
+                    if (!item.isPayment && item.invoiceMode === "new" && (!latestNewInvoice || String(item.date || "") >= String(latestNewInvoice.date || ""))) {
+                        latestNewInvoice = item;
+                        latestNewInvoiceId = invoiceId;
+                    }
+                });
+                const hasOlderStatement = Boolean(latestNewInvoiceId && invoiceKeys.some(id => id !== latestNewInvoiceId));
+                const statementButton = document.getElementById("showAllStatementBtn");
+                if (statementButton) {
+                    statementButton.style.display = hasOlderStatement ? "inline-block" : "none";
+                    statementButton.textContent = showFullStatement ? "🧾 عرض الفاتورة الجديدة فقط" : "📚 عرض كل كشف الحساب (قديم + جديد)";
+                }
+                const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId] : invoiceKeys;
+                visibleInvoiceKeys.forEach(invoiceId => {
                     const invoice = invoices[invoiceId];
                     const row = document.createElement("tr");
                     
@@ -1293,10 +1320,6 @@
                         }
                         
                         totalAll += total;
-                        if (invoice.invoiceMode === "new") {
-                            if (!latestNewInvoice || String(invoice.date || "") >= String(latestNewInvoice.date || "")) latestNewInvoice = invoice;
-                        }
-                        
                         const length = invoice.length ? Number(invoice.length).toFixed(2) : "-";
                         const width = invoice.width ? Number(invoice.width).toFixed(2) : "-";
                         
@@ -1332,12 +1355,20 @@
                     if (latestNewInvoice) {
                         const oldBalance = Number(latestNewInvoice.previousBalance) || 0;
                         const currentTotal = Number(latestNewInvoice.total) || 0;
-                        summary.innerHTML = `🧾 <strong>آخر فاتورة جديدة</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الجديدة: ${currentTotal.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${totalRemaining.toFixed(2)} جنيه`;
+                        const visibleNewRemaining = Number(latestNewInvoice.remaining) || 0;
+                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + visibleNewRemaining;
+                        totalElement.innerText = reportTotal.toFixed(2);
+                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الجديدة: ${currentTotal.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
                         summary.style.display = "block";
                     } else { summary.style.display = "none"; }
                 }
                 loader.style.display = "none";
             }
+            window.toggleStatementView = function() {
+                if (!currentInvoicesData) return;
+                showingFullStatement = !showingFullStatement;
+                displayInvoices(currentInvoicesData, showingFullStatement);
+            };
             
             // Redistribute payments after deleting a payment
             function redistributePayments() {
@@ -2080,6 +2111,9 @@
                 }
                 
                 modal.style.display = "flex";
+                showingFullStatement = false;
+                const statementButton = document.getElementById("showAllStatementBtn");
+                if (statementButton) statementButton.style.display = "none";
                 modalClientName.innerText = clientName;
                 modalAddInvoiceBtn.disabled = false;
                 modalCollectBtn.disabled = false;
