@@ -607,6 +607,22 @@
         .dashboard-action i { width:24px; text-align:center; margin-left:8px; font-size:16px; }
         .dashboard-action:disabled { opacity:.45; cursor:not-allowed; filter:grayscale(.35); transform:none; }
         .dashboard-action:disabled:hover { background:linear-gradient(135deg,#0d3b66,#1677bd); color:#fff; transform:none; }
+
+        .dashboard-debt-ticker { margin-top:14px; border:1px solid #f1d28a; border-radius:14px; background:linear-gradient(180deg,#fffdf5,#fff8df); overflow:hidden; text-align:right; }
+        .debt-ticker-title { padding:10px 14px 6px; color:#8a5700; font-weight:800; font-size:15px; }
+        .debt-ticker-viewport { position:relative; overflow:hidden; direction:ltr; padding:5px 0 12px; }
+        .debt-ticker-viewport::before, .debt-ticker-viewport::after { content:""; position:absolute; top:0; bottom:0; width:55px; z-index:2; pointer-events:none; }
+        .debt-ticker-viewport::before { left:0; background:linear-gradient(90deg,#fff9e5,transparent); }
+        .debt-ticker-viewport::after { right:0; background:linear-gradient(270deg,#fff9e5,transparent); }
+        .debt-ticker-track { display:flex; width:max-content; align-items:stretch; gap:10px; padding:0 18px; animation:debtTickerMove 28s linear infinite; }
+        .dashboard-debt-ticker:hover .debt-ticker-track { animation-play-state:paused; }
+        .debt-ticker-card { direction:rtl; min-width:190px; padding:10px 14px; border:1px solid #f0ce77; border-radius:11px; background:#fff; color:#704800; box-shadow:0 3px 8px rgba(180,120,0,.10); cursor:pointer; transition:opacity .4s, transform .2s; }
+        .debt-ticker-card:hover { transform:translateY(-2px); background:#fff4cc; }
+        .debt-ticker-card strong { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+        .debt-ticker-card small { display:block; margin-top:4px; color:#b45309; font-weight:800; }
+        .debt-ticker-empty { direction:rtl; color:#8a7350; padding:8px 18px; }
+        @keyframes debtTickerMove { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+        @media (max-width:600px) { .debt-ticker-card { min-width:165px; } .debt-ticker-track { animation-duration:22s; } }
         .dashboard-selected { margin-top:12px; padding:10px; border-radius:10px; background:#eef6ff; color:#0d3b66; text-align:center; font-weight:700; }
         @media (max-width:900px) { .dashboard-layout { grid-template-columns:1fr 1fr; grid-template-areas:"center center" "members actions"; } }
         @media (max-width:600px) { .dashboard-section { margin:72px 10px 10px; padding:12px; } .dashboard-layout { grid-template-columns:1fr; grid-template-areas:"center" "actions" "members"; } .dashboard-stat-grid { grid-template-columns:1fr; } .dashboard-member-list { max-height:260px; } .dashboard-header h2 { font-size:20px; } }
@@ -667,6 +683,10 @@
                     <div class="dashboard-stat orange"><h4>إجمالي المتبقي</h4><strong id="dashTotalRemain">0.00</strong><div>جنيه</div></div>
                 </div>
                 <div id="dashboardSelectedMember" class="dashboard-selected">اختر عضوًا من القائمة للبدء</div>
+                <div id="dashboardDebtTicker" class="dashboard-debt-ticker" aria-label="قائمة العملاء المدينين">
+                    <div class="debt-ticker-title"><i class="fas fa-chart-line"></i> حركة المديونية</div>
+                    <div class="debt-ticker-viewport"><div id="dashboardDebtTickerTrack" class="debt-ticker-track"><span class="debt-ticker-empty">جارٍ تحميل بيانات المديونية...</span></div></div>
+                </div>
             </main>
             <aside class="dashboard-panel dashboard-actions">
                 <h3>⚡ إجراءات سريعة</h3>
@@ -1714,6 +1734,7 @@
                     const cachedClients = getFromLocalStorage("clientsCache");
                     if (cachedClients) {
                         clientsData = cachedClients;
+                        loadDashboardDebtTicker();
                         renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
                         loadClients(searchTerm, filterType);
                         showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
@@ -1728,6 +1749,7 @@
                 
                 db.ref("clients").once("value").then(snapshot => {
                     clientsData = snapshot.val();
+                    loadDashboardDebtTicker();
                     renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
                     saveToLocalStorage("clientsCache", clientsData);
                     loadClients(searchTerm, filterType);
@@ -2042,6 +2064,30 @@
                     if (target && el) target.innerText = el.innerText;
                 });
             }
+            window.loadDashboardDebtTicker = function() {
+                const track = document.getElementById("dashboardDebtTickerTrack");
+                if (!track) return;
+                const entries = Object.entries(clientsData || {});
+                if (!entries.length || !navigator.onLine) {
+                    track.innerHTML = '<span class="debt-ticker-empty">لا توجد بيانات مديونية حاليًا</span>';
+                    return;
+                }
+                Promise.all(entries.map(([id, client]) => db.ref("invoices/" + id).once("value").then(snapshot => {
+                    let total = 0, paid = 0;
+                    snapshot.forEach(child => { const invoice = child.val() || {}; if (invoice.isPayment) paid += Number(invoice.amount) || 0; else total += Number(invoice.total) || 0; });
+                    return { id, name: client.name || "بدون اسم", remaining: total - paid };
+                }).catch(() => null))).then(rows => {
+                    const debts = rows.filter(row => row && row.remaining > 0.005).sort((a,b) => b.remaining - a.remaining);
+                    if (!debts.length) { track.innerHTML = '<span class="debt-ticker-empty">لا يوجد عملاء لديهم مديونية حاليًا</span>'; return; }
+                    const cards = debts.map(row => `<button class="debt-ticker-card" onclick="selectDebtTickerMember('${row.id}')"><strong><i class="fas fa-user"></i> ${escapeHtml(row.name)}</strong><small><i class="fas fa-coins"></i> المتبقي: ${row.remaining.toFixed(2)} جنيه</small></button>`).join("");
+                    track.innerHTML = cards + cards;
+                    track.style.animationDuration = Math.max(18, debts.length * 6) + "s";
+                });
+            };
+            window.selectDebtTickerMember = function(clientId) {
+                if (typeof selectDashboardMember === "function") selectDashboardMember(clientId);
+            };
+
             window.renderDashboardMembers = function(searchTerm = "") {
                 const list = document.getElementById("dashboardMembersList");
                 if (!list) return;
