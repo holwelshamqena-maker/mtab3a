@@ -88,6 +88,7 @@
             min-width: 200px;
             max-width: 300px
         }
+        #navbar button i, button i { margin-left:6px; }
         #navbar button {
             padding: 10px 20px;
             border-radius: 5px;
@@ -616,7 +617,7 @@
     </style>
 </head>
 <body>
-    <button id=menuToggle onclick=toggleMenu()>☰</button>
+    <button id="menuToggle" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
     <div id=sidebarBackdrop></div>
     <div id=loginScreen class=login-screen>
         <div class=login-box>
@@ -628,7 +629,7 @@
         </div>
     </div>
     <div id=navbar>
-        <button id=closeSidebar onclick=toggleMenu()>✖</button>
+        <button id="closeSidebar" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
         <img id=navbarLogo src=https://i.servimg.com/u/f28/15/53/23/87/ae_a_010.png alt="شعار مطبعة طارق أبوهمام" />
         <div class=notification-container>
             <i class="fas fa-bell notification-bell" onclick=toggleNotifications()></i>
@@ -639,27 +640,27 @@
             <input oninput="handleNavbarSearchInput()" autocomplete="off" placeholder="ابحث عن عضو" id=searchBox type=text />
             <div id="navbarSearchSuggestions" class="navbar-search-suggestions"></div>
         </div>
-        <button onclick=goToHomePage()>لوحة التحكم</button>
-        <button onclick=goToMembersPage()>👥 قائمة الأعضاء</button>
-        <button onclick=refreshPage()>تحديث الصفحة</button>
-        <button onclick=goToPricingPage()>قائمة الأسعار</button>
-        <button onclick=goToSalaries()>مرتبات</button>
-        <button onclick=logout()>تسجيل الخروج</button>
+        <button onclick="goToHomePage()"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</button>
+        <button onclick="goToMembersPage()"><i class="fas fa-users"></i> قائمة الأعضاء</button>
+        <button onclick="refreshPage()"><i class="fas fa-sync-alt"></i> تحديث الصفحة</button>
+        <button onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
+        <button onclick="goToSalaries()"><i class="fas fa-money-check-alt"></i> مرتبات</button>
+        <button onclick="logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
     </div>
 
     <section id="dashboardSection" class="dashboard-section">
         <div class="dashboard-header">
             <div><h2>لوحة الحسابات الرئيسية</h2><p>إدارة الأعضاء والفواتير والتحصيل من مكان واحد</p></div>
-            <button onclick="refreshPage()">↻ تحديث البيانات</button>
+            <button onclick="refreshPage()"><i class="fas fa-sync-alt"></i> تحديث البيانات</button>
         </div>
         <div class="dashboard-layout">
             <aside class="dashboard-panel dashboard-members">
-                <h3>👥 الأعضاء</h3>
+                <h3><i class="fas fa-users"></i> الأعضاء</h3>
                 <input id="dashboardMemberSearch" class="dashboard-search" type="search" placeholder="بحث سريع عن عضو" oninput="renderDashboardMembers(this.value)">
                 <div id="dashboardMembersList" class="dashboard-member-list"><p style="color:#718096;text-align:center">جارٍ تحميل الأعضاء...</p></div>
             </aside>
             <main class="dashboard-panel dashboard-center">
-                <h3>📊 الإجمالي الحسابي</h3>
+                <h3><i class="fas fa-chart-line"></i> الإجمالي الحسابي</h3>
                 <div class="dashboard-stat-grid">
                     <div class="dashboard-stat blue"><h4>إجمالي الفواتير</h4><strong id="dashTotalAll">0.00</strong><div>جنيه</div></div>
                     <div class="dashboard-stat green"><h4>إجمالي المحصل</h4><strong id="dashTotalPaid">0.00</strong><div>جنيه</div></div>
@@ -717,14 +718,14 @@
             <div id=stepSelectType>
                 <label style="display:block;text-align:right;font-weight:700;color:#0d3b66">نوع التعامل مع الفاتورة
                     <select id="invoiceMode" onchange="previewCarryForwardBalance()">
-                        <option value="new">🧾 فاتورة جديدة — ترحيل الرصيد القديم</option>
+                        <option value="new">فاتورة جديدة — ترحيل الرصيد القديم</option>
                         <option value="append">➕ إضافة على الفواتير القديمة</option>
                     </select>
                 </label>
                 <div id="carryForwardHint" class="price-hint">سيتم حساب الرصيد القديم وترحيله مع الفاتورة الجديدة عند المشاركة.</div>
                 <p>هل هذه الفاتورة طباعة بنر؟</p>
-                <button onclick=selectBanner(!0)>✅ نعم</button>
-                <button onclick=selectBanner(!1)>❌ لا</button>
+                <button onclick="selectBanner(true)"><i class="fas fa-check"></i> نعم</button>
+                <button onclick="selectBanner(false)"><i class="fas fa-times"></i> لا</button>
             </div>
             <div class=hidden id=bannerForm>
                 <select id=bannerType>
@@ -741,18 +742,18 @@
                 <input step=0.01 min=0 placeholder="العرض (بالمتر)" id=width type=number />
                 <input step=1 min=1 placeholder=العدد id=bannerQty type=number />
                 <input step=0.01 min=0 placeholder="سعر المتر" id=price type=number />
-                <button onclick=saveBannerInvoice()>حفظ الفاتورة</button>
-                <button onclick=backToType()>⬅️ رجوع</button>
-                <button onclick=closeInvoiceModal()>❌ إلغاء</button>
+                <button onclick="saveBannerInvoice()"><i class="fas fa-save"></i> حفظ الفاتورة</button>
+                <button onclick="backToType()"><i class="fas fa-arrow-right"></i> رجوع</button>
+                <button onclick="closeInvoiceModal()"><i class="fas fa-times"></i> إلغاء</button>
             </div>
             <div class=hidden id=manualForm>
                 <label>الصنف من قائمة الأسعار<select id="manualPricingItem" onchange="applyPricingToInvoice('manual')"><option value="">-- اختر صنفًا --</option></select></label>
                 <input placeholder=الوصف id=desc type=text />
                 <input step=1 min=1 placeholder=الكمية id=qty type=number />
                 <input step=0.01 min=0 placeholder="سعر الوحدة" id=unitPrice type=number />
-                <button onclick=saveManualInvoice()>حفظ الفاتورة</button>
-                <button onclick=backToType()>⬅️ رجوع</button>
-                <button onclick=closeInvoiceModal()>❌ إلغاء</button>
+                <button onclick="saveManualInvoice()"><i class="fas fa-save"></i> حفظ الفاتورة</button>
+                <button onclick="backToType()"><i class="fas fa-arrow-right"></i> رجوع</button>
+                <button onclick="closeInvoiceModal()"><i class="fas fa-times"></i> إلغاء</button>
             </div>
         </div>
     </div>
@@ -761,8 +762,8 @@
             <h3>تحصيل مبلغ من العميل</h3>
             <input step=0.01 min=0 placeholder="المبلغ بالجنيه" id=collectionAmount type=number />
             <input placeholder=الوصف id=collectionDesc type=text />
-            <button onclick=processCollection()>تحصيل المبلغ</button>
-            <button onclick=closeCollectionModal()>❌ إلغاء</button>
+            <button onclick="processCollection()"><i class="fas fa-money-bill-wave"></i> تحصيل المبلغ</button>
+            <button onclick="closeCollectionModal()"><i class="fas fa-times"></i> إلغاء</button>
         </div>
     </div>
     <!-- Edit Client Modal -->
@@ -776,8 +777,8 @@
                 <option value="فرد">فرد</option>
                 <option value="تجاري">تجاري</option>
             </select>
-            <button onclick="saveEditedClient()">حفظ التعديلات</button>
-            <button onclick="closeEditClientModal()">إلغاء</button>
+            <button onclick="saveEditedClient()"><i class="fas fa-save"></i> حفظ التعديلات</button>
+            <button onclick="closeEditClientModal()"><i class="fas fa-times"></i> إلغاء</button>
         </div>
     </div>
     <!-- Edit Invoice Modal -->
@@ -786,8 +787,8 @@
             <h3>تعديل الفاتورة</h3>
             <div id=editStepSelectType>
                 <p>هل هذه الفاتورة طباعة بنر؟</p>
-                <button onclick="selectEditBanner(true)">✅ نعم</button>
-                <button onclick="selectEditBanner(false)">❌ لا</button>
+                <button onclick="selectEditBanner(true)"><i class="fas fa-check"></i> نعم</button>
+                <button onclick="selectEditBanner(false)"><i class="fas fa-times"></i> لا</button>
             </div>
             <div id=editBannerForm class=hidden>
                 <select id=editBannerType>
@@ -803,17 +804,17 @@
                 <input type="number" id="editWidth" step="0.01" min="0" placeholder="العرض (بالمتر)">
                 <input type="number" id="editBannerQty" step="1" min="1" placeholder="العدد">
                 <input type="number" id="editPrice" step="0.01" min="0" placeholder="سعر المتر">
-                <button onclick="saveEditedBannerInvoice()">حفظ التعديلات</button>
-                <button onclick="backToEditType()">⬅️ رجوع</button>
-                <button onclick="closeEditInvoiceModal()">❌ إلغاء</button>
+                <button onclick="saveEditedBannerInvoice()"><i class="fas fa-save"></i> حفظ التعديلات</button>
+                <button onclick="backToEditType()"><i class="fas fa-arrow-right"></i> رجوع</button>
+                <button onclick="closeEditInvoiceModal()"><i class="fas fa-times"></i> إلغاء</button>
             </div>
             <div id=editManualForm class=hidden>
                 <input type="text" id="editDesc" placeholder="الوصف">
                 <input type="number" id="editQty" step="1" min="1" placeholder="الكمية">
                 <input type="number" id="editUnitPrice" step="0.01" min="0" placeholder="سعر الوحدة">
-                <button onclick="saveEditedManualInvoice()">حفظ التعديلات</button>
-                <button onclick="backToEditType()">⬅️ رجوع</button>
-                <button onclick="closeEditInvoiceModal()">❌ إلغاء</button>
+                <button onclick="saveEditedManualInvoice()"><i class="fas fa-save"></i> حفظ التعديلات</button>
+                <button onclick="backToEditType()"><i class="fas fa-arrow-right"></i> رجوع</button>
+                <button onclick="closeEditInvoiceModal()"><i class="fas fa-times"></i> إلغاء</button>
             </div>
         </div>
     </div>
@@ -821,11 +822,11 @@
         <div class=modal-content>
             <h3>فواتير العميل: <span id=modalClientName></span></h3>
             <div class=no-print style=display:flex;flex-wrap:wrap;gap:10px>
-                <button disabled onclick=openInvoiceModal() id=modalAddInvoiceBtn>➕ إضافة فاتورة</button>
-                <button disabled onclick=openCollectionModal() id=modalCollectBtn>تحصيل مبلغ</button>
-                <button onclick=shareViaWhatsApp()>مشاركة عبر WhatsApp</button>
-                <button id="showAllStatementBtn" style="display:none" onclick="toggleStatementView()">📚 عرض كل كشف الحساب (قديم + جديد)</button>
-                <button onclick=closeInvoicesModal()>❌ إغلاق</button>
+                <button disabled onclick="openInvoiceModal()" id="modalAddInvoiceBtn"><i class="fas fa-file-invoice"></i> إضافة فاتورة</button>
+                <button disabled onclick="openCollectionModal()" id="modalCollectBtn"><i class="fas fa-money-bill-wave"></i> تحصيل مبلغ</button>
+                <button onclick="shareViaWhatsApp()"><i class="fab fa-whatsapp"></i> مشاركة عبر WhatsApp</button>
+                <button id="showAllStatementBtn" style="display:none" onclick="toggleStatementView()"><i class="fas fa-book-open"></i> عرض كل كشف الحساب (قديم + جديد)</button>
+                <button onclick="closeInvoicesModal()"><i class="fas fa-times"></i> إغلاق</button>
             </div>
             <div class=loader id=modalInvoicesLoader></div>
             <div id="modalCarryForwardSummary" class="carry-forward-summary" style="display:none"></div>
@@ -883,8 +884,8 @@
 
     <div style="display:none" id="pricingSection" class="box">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <h3 style="margin:0">📋 قائمة الأصناف والأسعار</h3>
-            <button onclick="goToHomePage()">⬅️ العودة للعملاء</button>
+            <h3 style="margin:0"><i class="fas fa-tags"></i> قائمة الأصناف والأسعار</h3>
+            <button onclick="goToHomePage()"><i class="fas fa-arrow-right"></i> العودة للعملاء</button>
         </div>
         <p style="color:#555">أضف سعرًا خاصًا لكل صنف حسب نوع العميل. ستظهر الأصناف تلقائيًا عند إضافة فاتورة للعميل.</p>
         <div class="pricing-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:end">
@@ -892,7 +893,7 @@
             <label>اسم الصنف<input id="pricingItemName" type="text" placeholder="مثال: كارت شخصي"></label>
             <label>الوحدة<input id="pricingItemUnit" type="text" placeholder="قطعة / متر"></label>
             <label>السعر<input id="pricingItemPrice" type="number" min="0" step="0.01" placeholder="السعر بالجنيه"></label>
-            <button onclick="savePricingItem()">➕ إضافة الصنف</button>
+            <button onclick="savePricingItem()"><i class="fas fa-plus"></i> إضافة الصنف</button>
         </div>
         <div class="client-filter-buttons" style="justify-content:flex-start">
             <button class="client-filter-button active" data-pricing-filter="all" onclick="filterPricing('all')">كل الأسعار</button>
@@ -907,9 +908,9 @@
     <div style=display:none id=invoiceBox class=box>
         <h3>اسم العميل:<span id=selectedClientName></span></h3>
         <div class=no-print style=display:flex;flex-wrap:wrap;gap:10px>
-            <button disabled onclick=openInvoiceModal() id=addInvoiceBtn>➕ إضافة فاتورة</button>
-            <button disabled onclick=openCollectionModal() id=collectBtn>تحصيل مبلغ</button>
-            <button onclick=shareViaWhatsApp()>مشاركة عبر WhatsApp</button>
+            <button disabled onclick="openInvoiceModal()" id="addInvoiceBtn"><i class="fas fa-file-invoice"></i> إضافة فاتورة</button>
+            <button disabled onclick="openCollectionModal()" id="collectBtn"><i class="fas fa-money-bill-wave"></i> تحصيل مبلغ</button>
+            <button onclick="shareViaWhatsApp()"><i class="fab fa-whatsapp"></i> مشاركة عبر WhatsApp</button>
         </div>
         <div class=loader id=invoicesLoader></div>
         <div style=overflow-x:auto;margin-top:10px>
@@ -1231,7 +1232,7 @@
                                         <td>${remaining.toFixed(2)} جنيه</td>
                                         <td class="${debtAgeClass}">${debtAgeText === "غير محدد" ? debtAgeText : debtAgeText + " يوم"}</td>
                                         <td><button onclick="showInvoices('${clientId}', '${client.name}')">عرض الفواتير</button></td>
-                                        <td><button class="edit-btn" onclick="editClient('${clientId}')">✏️ تعديل</button></td>
+                                        <td><button class="edit-btn" onclick="editClient('${clientId}')"><i class="fas fa-edit"></i> تعديل</button></td>
                                         <td><button onclick="deleteClient('${clientId}')">❌</button></td>
                                     `;
                                     tableBody.appendChild(row);
@@ -1435,7 +1436,7 @@
                             <td>${total.toFixed(2)}</td>
                             <td>${paid.toFixed(2)}</td>
                             <td>${remaining.toFixed(2)}</td>
-                            <td class="no-print"><button class="edit-btn" onclick="editInvoice('${invoiceId}')">✏️ تعديل</button></td>
+                            <td class="no-print"><button class="edit-btn" onclick="editInvoice('${invoiceId}')"><i class="fas fa-edit"></i> تعديل</button></td>
                             <td class="no-print"><button onclick="deleteInvoice('${invoiceId}')">❌</button></td>
                         `;
                     }
@@ -1981,7 +1982,7 @@
                     Object.keys(pricingItems[type] || {}).forEach(id => {
                         const item = pricingItems[type][id]; count++;
                         const row = document.createElement("tr");
-                        row.innerHTML = `<td>${escapeHtml(type)}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit || "")}</td><td>${Number(item.price || 0).toFixed(2)} جنيه</td><td><button class="edit-btn" onclick="deletePricingItem('${type}','${id}')">حذف</button></td>`;
+                        row.innerHTML = `<td>${escapeHtml(type)}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit || "")}</td><td>${Number(item.price || 0).toFixed(2)} جنيه</td><td><button class="edit-btn" onclick="deletePricingItem('${type}','${id}')"><i class="fas fa-trash"></i> حذف</button></td>`;
                         body.appendChild(row);
                     });
                 });
