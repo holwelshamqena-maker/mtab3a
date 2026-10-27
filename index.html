@@ -560,6 +560,9 @@
         .pricing-form input, .pricing-form select { box-sizing:border-box; }
         #pricingTable td, #pricingTable th { white-space:nowrap; }
         .price-hint { color:#0d3b66; font-size:13px; margin:4px 0; }
+
+        .carry-forward-row { background:#fff3cd !important; color:#7a4b00; font-weight:700; }
+        .carry-forward-row td { border-color:#e7c96a; }
         .carry-forward-summary { background: #e8f4ff; border-right: 4px solid #0d3b66; border-radius: 8px; padding: 12px; margin: 10px 0; color: #0d3b66; font-weight: 700; line-height: 1.9; }
 
     </style>
@@ -1282,6 +1285,20 @@
                     statementButton.textContent = showFullStatement ? "🧾 عرض الفاتورة الجديدة فقط" : "📚 عرض كل كشف الحساب (قديم + جديد)";
                 }
                 const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId] : invoiceKeys;
+                // في عرض الفاتورة الجديدة فقط، أضف الرصيد السابق كسطر مستقل في أعلى الجدول.
+                // هذا السطر للعرض ولا يدخل مرة أخرى في حساب المديونية.
+                if (!showFullStatement && latestNewInvoiceId && (Number(latestNewInvoice.previousBalance) || 0) > 0) {
+                    const carryRow = document.createElement("tr");
+                    carryRow.className = "carry-forward-row";
+                    const carryBalance = (Number(latestNewInvoice.previousBalance) || 0).toFixed(2);
+                    carryRow.innerHTML = `
+                        <td>${formatDate(latestNewInvoice.date)}</td>
+                        <td>رصيد مرحّل من الفواتير السابقة</td>
+                        <td>-</td><td>-</td><td>-</td><td>-</td>
+                        <td>${carryBalance}</td><td>-</td><td>${carryBalance}</td>
+                        <td class="no-print">-</td><td class="no-print">-</td>`;
+                    tableBody.appendChild(carryRow);
+                }
                 visibleInvoiceKeys.forEach(invoiceId => {
                     const invoice = invoices[invoiceId];
                     const row = document.createElement("tr");
