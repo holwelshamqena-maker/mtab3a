@@ -560,6 +560,8 @@
         .pricing-form input, .pricing-form select { box-sizing:border-box; }
         #pricingTable td, #pricingTable th { white-space:nowrap; }
         .price-hint { color:#0d3b66; font-size:13px; margin:4px 0; }
+        .carry-forward-summary { background: #e8f4ff; border-right: 4px solid #0d3b66; border-radius: 8px; padding: 12px; margin: 10px 0; color: #0d3b66; font-weight: 700; line-height: 1.9; }
+
     </style>
 </head>
 <body>
@@ -625,6 +627,13 @@
         <div class=modal-content>
             <h3>إضافة فاتورة جديدة</h3>
             <div id=stepSelectType>
+                <label style="display:block;text-align:right;font-weight:700;color:#0d3b66">نوع التعامل مع الفاتورة
+                    <select id="invoiceMode" onchange="previewCarryForwardBalance()">
+                        <option value="new">🧾 فاتورة جديدة — ترحيل الرصيد القديم</option>
+                        <option value="append">➕ إضافة على الفواتير القديمة</option>
+                    </select>
+                </label>
+                <div id="carryForwardHint" class="price-hint">سيتم حساب الرصيد القديم وترحيله مع الفاتورة الجديدة عند المشاركة.</div>
                 <p>هل هذه الفاتورة طباعة بنر؟</p>
                 <button onclick=selectBanner(!0)>✅ نعم</button>
                 <button onclick=selectBanner(!1)>❌ لا</button>
@@ -730,6 +739,7 @@
                 <button onclick=closeInvoicesModal()>❌ إغلاق</button>
             </div>
             <div class=loader id=modalInvoicesLoader></div>
+            <div id="modalCarryForwardSummary" class="carry-forward-summary" style="display:none"></div>
             <div style=overflow-x:auto;margin-top:10px>
                 <table id=modalInvoiceTable>
                     <thead>
@@ -1198,6 +1208,30 @@
                 });
             }
             
+            function getClientOutstandingBalance() {
+                return db.ref("invoices/" + currentClientId).once("value").then(snapshot => {
+                    let total = 0, paid = 0;
+                    if (snapshot.exists()) snapshot.forEach(child => {
+                        const item = child.val() || {};
+                        if (item.isPayment) paid += Number(item.amount) || 0;
+                        else total += Number(item.total) || 0;
+                    });
+                    return Math.max(0, total - paid);
+                });
+            }
+            window.previewCarryForwardBalance = function() {
+                const hint = document.getElementById("carryForwardHint");
+                const mode = document.getElementById("invoiceMode").value;
+                if (!hint) return;
+                if (mode === "append") { hint.textContent = "ستضاف الفاتورة إلى الفواتير الحالية بدون إنشاء رصيد مرحّل."; return; }
+                hint.textContent = "جارٍ حساب الرصيد السابق...";
+                getClientOutstandingBalance().then(balance => { hint.textContent = `الرصيد السابق الذي سيُرحّل: ${balance.toFixed(2)} جنيه — سيظهر مع قيمة الفاتورة الجديدة عند المشاركة.`; }).catch(() => { hint.textContent = "سيتم حساب الرصيد السابق عند حفظ الفاتورة."; });
+            };
+            function getInvoiceModeData() {
+                const mode = document.getElementById("invoiceMode")?.value || "append";
+                return mode === "new" ? getClientOutstandingBalance().then(previousBalance => ({ invoiceMode: "new", previousBalance: previousBalance.toFixed(2) })) : Promise.resolve({ invoiceMode: "append", previousBalance: "0.00" });
+            }
+
             // Display invoices in the modal
             function displayInvoices(invoices) {
                 const loader = document.getElementById("modalInvoicesLoader");
@@ -1211,6 +1245,7 @@
                 
                 let totalAll = 0;
                 let totalPaid = 0;
+                let latestNewInvoice = null;
                 
                 if (!invoices) {
                     loader.style.display = "none";
@@ -1258,6 +1293,9 @@
                         }
                         
                         totalAll += total;
+                        if (invoice.invoiceMode === "new") {
+                            if (!latestNewInvoice || String(invoice.date || "") >= String(latestNewInvoice.date || "")) latestNewInvoice = invoice;
+                        }
                         
                         const length = invoice.length ? Number(invoice.length).toFixed(2) : "-";
                         const width = invoice.width ? Number(invoice.width).toFixed(2) : "-";
@@ -1289,7 +1327,15 @@
                 } else {
                     totalElement.innerText = totalRemaining.toFixed(2);
                 }
-                
+                const summary = document.getElementById("modalCarryForwardSummary");
+                if (summary) {
+                    if (latestNewInvoice) {
+                        const oldBalance = Number(latestNewInvoice.previousBalance) || 0;
+                        const currentTotal = Number(latestNewInvoice.total) || 0;
+                        summary.innerHTML = `🧾 <strong>آخر فاتورة جديدة</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الجديدة: ${currentTotal.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${totalRemaining.toFixed(2)} جنيه`;
+                        summary.style.display = "block";
+                    } else { summary.style.display = "none"; }
+                }
                 loader.style.display = "none";
             }
             
@@ -1882,6 +1928,8 @@
                 document.getElementById("desc").value = "";
                 document.getElementById("qty").value = "";
                 document.getElementById("unitPrice").value = "";
+                document.getElementById("invoiceMode").value = "new";
+                document.getElementById("carryForwardHint").textContent = "سيتم حساب الرصيد القديم وترحيله مع الفاتورة الجديدة عند المشاركة.";
                 document.getElementById("bannerPricingItem").value = "";
                 document.getElementById("manualPricingItem").value = "";
             };
@@ -2108,6 +2156,8 @@
                 document.getElementById("stepSelectType").style.display = "block";
                 document.getElementById("bannerForm").style.display = "none";
                 document.getElementById("manualForm").style.display = "none";
+                document.getElementById("invoiceMode").value = "new";
+                previewCarryForwardBalance();
                 
                 if (window.innerWidth < 768) {
                     document.getElementById("navbar").classList.remove("open");
@@ -2177,7 +2227,10 @@
                     isPayment: false
                 };
                 
-                db.ref("invoices/" + currentClientId).push(invoice).then(() => {
+                getInvoiceModeData().then(modeData => {
+                    Object.assign(invoice, modeData);
+                    return db.ref("invoices/" + currentClientId).push(invoice);
+                }).then(() => {
                     console.log(`Invoice saved for client ${currentClientId}:`, invoice);
                     
                     document.getElementById("invoiceModal").style.display = "none";
@@ -2235,7 +2288,10 @@
                     isPayment: false
                 };
                 
-                db.ref("invoices/" + currentClientId).push(invoice).then(() => {
+                getInvoiceModeData().then(modeData => {
+                    Object.assign(invoice, modeData);
+                    return db.ref("invoices/" + currentClientId).push(invoice);
+                }).then(() => {
                     console.log(`Manual invoice saved for client ${currentClientId}:`, invoice);
                     
                     document.getElementById("invoiceModal").style.display = "none";
@@ -2431,8 +2487,9 @@
                         <h3 style="text-align: center; margin-bottom: 15mm; border-bottom: 2px solid #0d3b66; padding-bottom: 5mm;">
                           مطبعة طارق أبوهمام<br>اسم العميل: ${currentClientName}<br>نوع العميل: ${client.clientType}<br>رقم الهاتف: ${phoneNumber}<br>تاريخ التقرير: ${formatDate(getCurrentDate())}
                         </h3>
+                        ${document.getElementById("modalCarryForwardSummary")?.outerHTML || ""}
                         ${document.getElementById("modalInvoiceTable").outerHTML}
-                        <h3 style="font-size: 12pt; text-align: left; margin-top: 5mm;">الإجمـــالي: ${document.getElementById("modalTotalInvoices").innerText} جنيه</h3>
+                        <h3 style="font-size: 12pt; text-align: left; margin-top: 5mm;">إجمالي الحساب (قديم + جديد): ${document.getElementById("modalTotalInvoices").innerText} جنيه</h3>
                         <div style="text-align: center; font-size: 8pt; color: #666; border-top: 1px solid #0d3b66; padding-top: 2mm; margin-top: 10mm;">
                           شكراً لتعاملك معنا - مطابع طارق أبوهمام - للتواصل: 01008110848
                         </div>
