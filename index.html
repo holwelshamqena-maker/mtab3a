@@ -563,6 +563,18 @@
         .price-hint { color:#0d3b66; font-size:13px; margin:4px 0; }
 
 
+
+        #navbarSearchWrap { position:relative; width:min(300px,32vw); min-width:210px; direction:rtl; }
+        #navbarSearchWrap input { width:100%; box-sizing:border-box; margin:0; }
+        .navbar-search-suggestions { position:absolute; top:calc(100% + 8px); right:0; left:0; background:#fff; border-radius:12px; box-shadow:0 8px 25px rgba(0,0,0,.24); overflow:hidden; display:none; z-index:1400; text-align:right; }
+        .navbar-search-suggestions.open { display:block; }
+        .navbar-search-suggestion { width:100%; display:flex; align-items:center; gap:10px; padding:10px 12px; margin:0; border:0; border-bottom:1px solid #edf1f5; background:#fff; color:#0d3b66; text-align:right; cursor:pointer; }
+        .navbar-search-suggestion:hover { background:#eef6ff; }
+        .navbar-search-suggestion .suggestion-avatar { width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; border-radius:50%; background:#0d3b66; color:#fff; font-weight:700; }
+        .navbar-search-suggestion strong, .navbar-search-suggestion small { display:block; }
+        .navbar-search-suggestion small { color:#718096; margin-top:2px; }
+        .navbar-search-empty { padding:14px; color:#718096; text-align:center; }
+        @media (max-width:767px) { #navbarSearchWrap { width:90%; min-width:0; } .navbar-search-suggestions { position:fixed; top:100px; right:18px; left:18px; width:auto; } }
         /* لوحة التحكم الجديدة */
         .dashboard-section { display:none; position:relative; z-index:1; margin:88px 20px 20px; padding:18px; background:#f5f8fc; border-radius:18px; box-shadow:0 8px 30px rgba(13,59,102,.12); }
         .dashboard-header { display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap; margin-bottom:16px; }
@@ -620,7 +632,10 @@
             <span class=notification-count id=notificationCount>0</span>
             <div class=notification-dropdown id=notificationDropdown></div>
         </div>
-        <input onkeyup=debouncedSearchClients() placeholder="ابحث عن عميل" id=searchBox type=text />
+        <div id="navbarSearchWrap">
+            <input oninput="handleNavbarSearchInput()" autocomplete="off" placeholder="ابحث عن عضو" id=searchBox type=text />
+            <div id="navbarSearchSuggestions" class="navbar-search-suggestions"></div>
+        </div>
         <button onclick=goToHomePage()>لوحة التحكم</button>
         <button onclick=goToMembersPage()>👥 قائمة الأعضاء</button>
         <button onclick=refreshPage()>تحديث الصفحة</button>
@@ -1747,6 +1762,44 @@
             
             window.debouncedSearchClients = _.debounce(searchClients, 300);
             
+            window.handleNavbarSearchInput = function() {
+                debouncedSearchClients();
+                renderNavbarSearchSuggestions();
+            };
+            window.renderNavbarSearchSuggestions = function() {
+                const input = document.getElementById("searchBox");
+                const box = document.getElementById("navbarSearchSuggestions");
+                if (!input || !box) return;
+                const term = input.value.trim().toLowerCase();
+                if (!term) { box.innerHTML = ""; box.classList.remove("open"); return; }
+                const matches = Object.entries(clientsData || {}).filter(([id, client]) => {
+                    const name = String(client.name || "").toLowerCase();
+                    const phone = String(client.phone || "");
+                    return name.includes(term) || phone.includes(term);
+                }).slice(0, 8);
+                box.innerHTML = "";
+                if (!matches.length) { box.innerHTML = '<div class="navbar-search-empty">لا توجد نتائج مطابقة</div>'; box.classList.add("open"); return; }
+                matches.forEach(([id, client]) => {
+                    const item = document.createElement("button"); item.className = "navbar-search-suggestion";
+                    const firstLetter = String(client.name || "؟").trim().charAt(0) || "؟";
+                    item.innerHTML = `<span class="suggestion-avatar">${escapeHtml(firstLetter)}</span><span><strong>${escapeHtml(client.name || "بدون اسم")}</strong><small>${escapeHtml(client.clientType || "غير محدد")} · ${escapeHtml(client.phone || "بدون هاتف")}</small></span>`;
+                    item.onclick = () => selectNavbarSearchClient(id); box.appendChild(item);
+                });
+                box.classList.add("open");
+            };
+            window.selectNavbarSearchClient = function(clientId) {
+                const client = (clientsData || {})[clientId]; if (!client) return;
+                const input = document.getElementById("searchBox"); const box = document.getElementById("navbarSearchSuggestions");
+                if (input) input.value = client.name || "";
+                if (box) box.classList.remove("open");
+                currentClientId = clientId; currentClientName = client.name || ""; currentClientType = client.clientType || "مكتب";
+                showInvoices(clientId, client.name || "");
+            };
+            document.addEventListener("click", event => {
+                const wrap = document.getElementById("navbarSearchWrap"); const box = document.getElementById("navbarSearchSuggestions");
+                if (wrap && box && !wrap.contains(event.target)) box.classList.remove("open");
+            });
+
             window.checkLogin = function() {
                 const userField = document.getElementById("loginUser");
                 const passField = document.getElementById("loginPass");
