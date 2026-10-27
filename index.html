@@ -674,6 +674,7 @@
                     <button class="dashboard-action" onclick="openDashboardAddClient()"><i class="fas fa-user-plus"></i> إضافة عضو</button>
                     <button id="dashboardInvoiceBtn" class="dashboard-action" disabled onclick="openDashboardInvoice()"><i class="fas fa-file-invoice"></i> فاتورة جديدة</button>
                     <button id="dashboardCollectionBtn" class="dashboard-action" disabled onclick="openDashboardCollection()"><i class="fas fa-money-bill-wave"></i> تحصيل مبلغ</button>
+                    <button class="dashboard-action" onclick="goToDebtMembers()"><i class="fas fa-exclamation-triangle"></i> المديونية</button>
                     <button class="dashboard-action" onclick="goToMembersPage()"><i class="fas fa-users"></i> إدارة الأعضاء</button>
                     <button class="dashboard-action" onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
                 </div>
@@ -2082,6 +2083,19 @@
             window.openDashboardCollection = function() {
                 if (!currentClientId) return showAlert("اختر عضوًا", "اختر عضوًا من القائمة أولًا لتسجيل التحصيل", "warning");
                 openCollectionModal();
+            };
+            window.goToDebtMembers = function() {
+                if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
+                const dashboard = document.getElementById("dashboardSection"); if (dashboard) dashboard.style.display = "none";
+                const stats = document.getElementById("statsBox"); if (stats) stats.style.display = "none";
+                const add = document.getElementById("addClientBox"); if (add) add.style.display = "block";
+                const clients = document.getElementById("clientsSection"); if (clients) clients.style.display = "block";
+                currentFilter = "debt";
+                document.getElementById("debtClientsBtn")?.classList.add("active");
+                document.getElementById("allClientsBtn")?.classList.remove("active");
+                document.getElementById("officesBtn")?.classList.remove("active");
+                window.loadClients(document.getElementById("searchBox").value.trim(), "debt");
+                if (window.innerWidth < 768) { document.getElementById("navbar").classList.remove("open"); document.getElementById("sidebarBackdrop").classList.remove("open"); }
             };
             window.goToMembersPage = function() {
                 if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
