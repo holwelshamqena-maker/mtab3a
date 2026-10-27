@@ -2705,10 +2705,7 @@
                     return;
                 }
                 
-                if (!desc) {
-                    showAlert("خطأ", "يرجى إدخال وصف لعملية التحصيل", "error");
-                    return;
-                }
+                const paymentDescription = desc || "تحصيل مبلغ";
                 
                 const date = getCurrentDate() + "T" + new Date().toLocaleTimeString("en-US", { hour12: false });
                 const loader = document.getElementById("modalInvoicesLoader");
@@ -2773,7 +2770,7 @@
                     // Create payment record
                     const payment = {
                         date: date,
-                        desc: desc,
+                        desc: paymentDescription,
                         amount: amount.toFixed(2),
                         method: method,
                         clientId: currentClientId,
