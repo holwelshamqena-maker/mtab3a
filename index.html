@@ -1429,20 +1429,19 @@
                     statementButton.style.display = hasOlderStatement ? "inline-block" : "none";
                     statementButton.textContent = showFullStatement ? "🧾 عرض الفاتورة الجديدة فقط" : "📚 عرض كل كشف الحساب (قديم + جديد)";
                 }
-                const newInvoiceKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return !item.isPayment && item.invoiceMode === "new"; });
-                // التحصيلات التي تمت بعد بداية الفواتير الجديدة تخصم من إجمالي العرض المختصر.
-                const firstNewDate = firstNewInvoice ? String(firstNewInvoice.date || "") : "";
-                const newStatementPaymentKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return Boolean(item.isPayment) && (!firstNewDate || String(item.date || "") >= firstNewDate); });
-                // العرض المختصر يعرض كل الفواتير الجديدة، مع تحصيلاتها، أما الفواتير القديمة التفصيلية فتظهر في الكشف الكامل.
-                const visibleInvoiceKeys = (!showFullStatement && newInvoiceKeys.length) ? [...newInvoiceKeys, ...newStatementPaymentKeys] : invoiceKeys;
-                // في عرض الفواتير الجديدة فقط، أضف الرصيد السابق كسطر مستقل في أعلى الجدول.
+                // العرض المختصر يعرض آخر فاتورة جديدة فقط؛ وما قبلها يرحّل كسطر رصيد مرحّل.
+                // الفواتير القديمة والتفاصيل السابقة تظهر عند فتح الكشف الكامل.
+                const latestNewDate = latestNewInvoice ? String(latestNewInvoice.date || "") : "";
+                const latestStatementPaymentKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return Boolean(item.isPayment) && latestNewDate && String(item.date || "") >= latestNewDate; });
+                const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId, ...latestStatementPaymentKeys] : invoiceKeys;
+                // في العرض المختصر أضف الرصيد السابق للفاتورة الأحدث كسطر مستقل في أعلى الجدول.
                 // هذا السطر للعرض ولا يدخل مرة أخرى في حساب المديونية.
-                if (!showFullStatement && firstNewInvoiceId && (Number(firstNewInvoice.previousBalance) || 0) > 0) {
+                if (!showFullStatement && latestNewInvoiceId && (Number(latestNewInvoice.previousBalance) || 0) > 0) {
                     const carryRow = document.createElement("tr");
                     carryRow.className = "carry-forward-row";
-                    const carryBalance = (Number(firstNewInvoice.previousBalance) || 0).toFixed(2);
+                    const carryBalance = (Number(latestNewInvoice.previousBalance) || 0).toFixed(2);
                     carryRow.innerHTML = `
-                        <td>${formatDate(firstNewInvoice.date)}</td>
+                        <td>${formatDate(latestNewInvoice.date)}</td>
                         <td>رصيد مرحّل من الفواتير السابقة</td>
                         <td>-</td><td>-</td><td>-</td><td>-</td>
                         <td>${carryBalance}</td><td>-</td><td>${carryBalance}</td>
@@ -1520,11 +1519,11 @@
                 const summary = document.getElementById("modalCarryForwardSummary");
                 if (summary) {
                     if (latestNewInvoice) {
-                        const oldBalance = Number(firstNewInvoice?.previousBalance) || 0;
-                        const newInvoicesTotal = totalRemaining;
-                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + newInvoicesTotal;
+                        const oldBalance = Number(latestNewInvoice.previousBalance) || 0;
+                        const currentNewRemaining = totalRemaining;
+                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + currentNewRemaining;
                         totalElement.innerText = reportTotal.toFixed(2);
-                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفواتير الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>إجمالي الفواتير الجديدة بعد التحصيل: ${newInvoicesTotal.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
+                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>المتبقي من الفاتورة الجديدة: ${currentNewRemaining.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
                         summary.style.display = "block";
                     } else { summary.style.display = "none"; }
                 }
