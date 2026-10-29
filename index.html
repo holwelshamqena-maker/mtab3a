@@ -579,6 +579,14 @@
 
 
 
+
+        /* شريط تنقل واضح بدون إخفاء الأزرار */
+        #navbar { box-sizing:border-box; width:100%; padding:8px 14px; gap:6px; overflow:visible; }
+        #navbar button { flex:0 0 auto; padding:9px 12px; font-size:14px; white-space:nowrap; }
+        #navbar input { min-width:160px; max-width:240px; }
+        #navbarLogo { max-width:105px; }
+        @media (max-width:1100px) and (min-width:768px) { #navbar { justify-content:flex-start; overflow-x:auto; } #navbar button { padding:8px 10px; font-size:13px; } #navbarSearchWrap { min-width:180px; } }
+        @media (max-width:767px) { #navbar { overflow-y:auto; max-height:100vh; } #navbar button { width:90%; } #navbar input { max-width:none; } }
         #navbarSearchWrap { position:relative; width:min(300px,32vw); min-width:210px; direction:rtl; }
         #navbarSearchWrap input { width:100%; box-sizing:border-box; margin:0; }
         .navbar-search-suggestions { position:absolute; top:calc(100% + 8px); right:0; left:0; background:#fff; border-radius:12px; box-shadow:0 8px 25px rgba(0,0,0,.24); overflow:hidden; display:none; z-index:1400; text-align:right; }
@@ -2045,7 +2053,7 @@
                     Object.keys(pricingItems[type] || {}).forEach(id => {
                         const item = pricingItems[type][id]; count++;
                         const row = document.createElement("tr");
-                        row.innerHTML = `<td>${escapeHtml(type)}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit || "")}</td><td>${Number(item.price || 0).toFixed(2)} جنيه</td><td><button class="edit-btn" onclick="deletePricingItem('${type}','${id}')"><i class="fas fa-trash"></i> حذف</button></td>`;
+                        row.innerHTML = `<td>${escapeHtml(type)}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit || "")}</td><td>${Number(item.price || 0).toFixed(2)} جنيه</td><td><button class="edit-btn" onclick="editPricingItem('${type}','${id}')"><i class="fas fa-edit"></i> تعديل</button><button class="delete-btn" onclick="deletePricingItem('${type}','${id}')" title="حذف الصنف"><i class="fas fa-trash"></i></button></td>`;
                         body.appendChild(row);
                     });
                 });
@@ -2081,6 +2089,28 @@
                     document.getElementById("pricingItemName").value = ""; document.getElementById("pricingItemUnit").value = ""; document.getElementById("pricingItemPrice").value = "";
                     showAlert("تم بنجاح", "تمت إضافة الصنف إلى قائمة الأسعار", "success"); loadPricingCatalog();
                 }).catch(error => showAlert("خطأ", "تعذر حفظ السعر: " + error.message, "error"));
+            };
+            window.editPricingItem = function(type, id) {
+                const item = (pricingItems[type] || {})[id];
+                if (!item) return showAlert("خطأ", "تعذر العثور على الصنف", "error");
+                Swal.fire({
+                    title: "تعديل التسعيرة",
+                    html: `<input id="editPricingName" class="swal2-input" placeholder="اسم الصنف" value="${escapeHtml(item.name || "")}"><input id="editPricingUnit" class="swal2-input" placeholder="الوحدة" value="${escapeHtml(item.unit || "")}"><input id="editPricingPrice" class="swal2-input" type="number" min="0" step="0.01" placeholder="السعر" value="${Number(item.price || 0)}">`,
+                    showCancelButton: true, confirmButtonText: "حفظ التعديل", cancelButtonText: "إلغاء",
+                    preConfirm: () => {
+                        const name = document.getElementById("editPricingName").value.trim();
+                        const unit = document.getElementById("editPricingUnit").value.trim();
+                        const price = parseFloat(document.getElementById("editPricingPrice").value);
+                        if (!name || !unit || !Number.isFinite(price) || price < 0) { Swal.showValidationMessage("أدخل اسم الصنف والوحدة والسعر بشكل صحيح"); return false; }
+                        return { name, unit, price: price.toFixed(2) };
+                    }
+                }).then(result => {
+                    if (!result.isConfirmed) return;
+                    pricingRef().child(type).child(id).update(result.value).then(() => {
+                        showAlert("تم التعديل", "تم تحديث التسعيرة بنجاح", "success");
+                        loadPricingCatalog();
+                    }).catch(error => showAlert("خطأ", "تعذر تعديل التسعيرة: " + error.message, "error"));
+                });
             };
             window.deletePricingItem = function(type, id) {
                 Swal.fire({ title:"تأكيد الحذف", text:"هل تريد حذف هذا الصنف من التسعيرة؟", icon:"warning", showCancelButton:true, confirmButtonText:"نعم، احذف", cancelButtonText:"إلغاء" }).then(result => {
