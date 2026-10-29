@@ -1430,8 +1430,11 @@
                     statementButton.textContent = showFullStatement ? "🧾 عرض الفاتورة الجديدة فقط" : "📚 عرض كل كشف الحساب (قديم + جديد)";
                 }
                 const newInvoiceKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return !item.isPayment && item.invoiceMode === "new"; });
-                // العرض المختصر يعرض كل الفواتير الجديدة (وليس أحدث فاتورة فقط)، أما الفواتير القديمة فتظهر في الكشف الكامل.
-                const visibleInvoiceKeys = (!showFullStatement && newInvoiceKeys.length) ? newInvoiceKeys : invoiceKeys;
+                // التحصيلات التي تمت بعد بداية الفواتير الجديدة تخصم من إجمالي العرض المختصر.
+                const firstNewDate = firstNewInvoice ? String(firstNewInvoice.date || "") : "";
+                const newStatementPaymentKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return Boolean(item.isPayment) && (!firstNewDate || String(item.date || "") >= firstNewDate); });
+                // العرض المختصر يعرض كل الفواتير الجديدة، مع تحصيلاتها، أما الفواتير القديمة التفصيلية فتظهر في الكشف الكامل.
+                const visibleInvoiceKeys = (!showFullStatement && newInvoiceKeys.length) ? [...newInvoiceKeys, ...newStatementPaymentKeys] : invoiceKeys;
                 // في عرض الفواتير الجديدة فقط، أضف الرصيد السابق كسطر مستقل في أعلى الجدول.
                 // هذا السطر للعرض ولا يدخل مرة أخرى في حساب المديونية.
                 if (!showFullStatement && firstNewInvoiceId && (Number(firstNewInvoice.previousBalance) || 0) > 0) {
