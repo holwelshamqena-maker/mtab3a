@@ -1339,8 +1339,8 @@
                     const cachedInvoices = getFromLocalStorage(`invoices_${currentClientId}`);
                     if (cachedInvoices) {
                         currentInvoicesData = cachedInvoices;
-                        showingFullStatement = true;
-                        displayInvoices(cachedInvoices, true);
+                        showingFullStatement = false;
+                        displayInvoices(cachedInvoices, false);
                         showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
                     } else {
                         loader.style.display = "none";
@@ -1353,8 +1353,8 @@
                     const invoices = snapshot.val();
                     saveToLocalStorage(`invoices_${currentClientId}`, invoices);
                     currentInvoicesData = invoices;
-                    showingFullStatement = true;
-                    displayInvoices(invoices, true);
+                    showingFullStatement = false;
+                    displayInvoices(invoices, false);
                 }).catch(error => {
                     console.error("Error loading invoices:", error);
                     loader.style.display = "none";
@@ -1401,6 +1401,8 @@
                 let totalPaid = 0;
                 let latestNewInvoice = null;
                 let latestNewInvoiceId = null;
+                let firstNewInvoice = null;
+                let firstNewInvoiceId = null;
                 
                 if (!invoices) {
                     loader.style.display = "none";
@@ -1416,9 +1418,9 @@
                 const invoiceKeys = Object.keys(invoices);
                 invoiceKeys.forEach(invoiceId => {
                     const item = invoices[invoiceId] || {};
-                    if (!item.isPayment && item.invoiceMode === "new" && (!latestNewInvoice || String(item.date || "") >= String(latestNewInvoice.date || ""))) {
-                        latestNewInvoice = item;
-                        latestNewInvoiceId = invoiceId;
+                    if (!item.isPayment && item.invoiceMode === "new") {
+                        if (!latestNewInvoice || String(item.date || "") >= String(latestNewInvoice.date || "")) { latestNewInvoice = item; latestNewInvoiceId = invoiceId; }
+                        if (!firstNewInvoice || String(item.date || "") < String(firstNewInvoice.date || "")) { firstNewInvoice = item; firstNewInvoiceId = invoiceId; }
                     }
                 });
                 const hasOlderStatement = Boolean(latestNewInvoiceId && invoiceKeys.some(id => id !== latestNewInvoiceId));
@@ -1427,15 +1429,17 @@
                     statementButton.style.display = hasOlderStatement ? "inline-block" : "none";
                     statementButton.textContent = showFullStatement ? "🧾 عرض الفاتورة الجديدة فقط" : "📚 عرض كل كشف الحساب (قديم + جديد)";
                 }
-                const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId] : invoiceKeys;
-                // في عرض الفاتورة الجديدة فقط، أضف الرصيد السابق كسطر مستقل في أعلى الجدول.
+                const newInvoiceKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return !item.isPayment && item.invoiceMode === "new"; });
+                // العرض المختصر يعرض كل الفواتير الجديدة (وليس أحدث فاتورة فقط)، أما الفواتير القديمة فتظهر في الكشف الكامل.
+                const visibleInvoiceKeys = (!showFullStatement && newInvoiceKeys.length) ? newInvoiceKeys : invoiceKeys;
+                // في عرض الفواتير الجديدة فقط، أضف الرصيد السابق كسطر مستقل في أعلى الجدول.
                 // هذا السطر للعرض ولا يدخل مرة أخرى في حساب المديونية.
-                if (!showFullStatement && latestNewInvoiceId && (Number(latestNewInvoice.previousBalance) || 0) > 0) {
+                if (!showFullStatement && firstNewInvoiceId && (Number(firstNewInvoice.previousBalance) || 0) > 0) {
                     const carryRow = document.createElement("tr");
                     carryRow.className = "carry-forward-row";
-                    const carryBalance = (Number(latestNewInvoice.previousBalance) || 0).toFixed(2);
+                    const carryBalance = (Number(firstNewInvoice.previousBalance) || 0).toFixed(2);
                     carryRow.innerHTML = `
-                        <td>${formatDate(latestNewInvoice.date)}</td>
+                        <td>${formatDate(firstNewInvoice.date)}</td>
                         <td>رصيد مرحّل من الفواتير السابقة</td>
                         <td>-</td><td>-</td><td>-</td><td>-</td>
                         <td>${carryBalance}</td><td>-</td><td>${carryBalance}</td>
@@ -1513,12 +1517,11 @@
                 const summary = document.getElementById("modalCarryForwardSummary");
                 if (summary) {
                     if (latestNewInvoice) {
-                        const oldBalance = Number(latestNewInvoice.previousBalance) || 0;
-                        const currentTotal = Number(latestNewInvoice.total) || 0;
-                        const visibleNewRemaining = Number(latestNewInvoice.remaining) || 0;
-                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + visibleNewRemaining;
+                        const oldBalance = Number(firstNewInvoice?.previousBalance) || 0;
+                        const newInvoicesTotal = totalRemaining;
+                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + newInvoicesTotal;
                         totalElement.innerText = reportTotal.toFixed(2);
-                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الجديدة: ${currentTotal.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
+                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفواتير الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>إجمالي الفواتير الجديدة بعد التحصيل: ${newInvoicesTotal.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
                         summary.style.display = "block";
                     } else { summary.style.display = "none"; }
                 }
@@ -2422,7 +2425,7 @@
                 }
                 
                 modal.style.display = "flex";
-                showingFullStatement = true;
+                showingFullStatement = false;
                 const statementButton = document.getElementById("showAllStatementBtn");
                 if (statementButton) statementButton.style.display = "none";
                 modalClientName.innerText = clientName;
