@@ -944,7 +944,7 @@
     <div style="display:none" id="pricingSection" class="box">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <h3 style="margin:0"><i class="fas fa-tags"></i> قائمة الأصناف والأسعار</h3>
-            <button onclick="goToHomePage()"><i class="fas fa-arrow-right"></i> العودة للعملاء</button>
+            <button onclick="goToMembersPage()"><i class="fas fa-arrow-right"></i> العودة لقائمة الأعضاء</button>
         </div>
         <p style="color:#555">أضف سعرًا خاصًا لكل صنف حسب نوع العميل. ستظهر الأصناف تلقائيًا عند إضافة فاتورة للعميل.</p>
         <div class="pricing-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:end">
@@ -2177,6 +2177,8 @@
                 if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
                 const dashboard = document.getElementById("dashboardSection"); if (dashboard) dashboard.style.display = "none";
                 const stats = document.getElementById("statsBox"); if (stats) stats.style.display = "none";
+                const pricing = document.getElementById("pricingSection"); if (pricing) pricing.style.display = "none";
+                const invoice = document.getElementById("invoiceBox"); if (invoice) invoice.style.display = "none";
                 const add = document.getElementById("addClientBox"); if (add) add.style.display = "block";
                 const clients = document.getElementById("clientsSection"); if (clients) clients.style.display = "block";
                 currentFilter = "debt";
@@ -2190,6 +2192,8 @@
                 if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
                 const dashboard = document.getElementById("dashboardSection"); if (dashboard) dashboard.style.display = "none";
                 const stats = document.getElementById("statsBox"); if (stats) stats.style.display = "none";
+                const pricing = document.getElementById("pricingSection"); if (pricing) pricing.style.display = "none";
+                const invoice = document.getElementById("invoiceBox"); if (invoice) invoice.style.display = "none";
                 const add = document.getElementById("addClientBox"); if (add) add.style.display = "block";
                 const clients = document.getElementById("clientsSection"); if (clients) clients.style.display = "block";
                 window.loadClients(document.getElementById("searchBox").value.trim(), "all");
