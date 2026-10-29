@@ -1339,8 +1339,8 @@
                     const cachedInvoices = getFromLocalStorage(`invoices_${currentClientId}`);
                     if (cachedInvoices) {
                         currentInvoicesData = cachedInvoices;
-                        showingFullStatement = false;
-                        displayInvoices(cachedInvoices, false);
+                        showingFullStatement = true;
+                        displayInvoices(cachedInvoices, true);
                         showAlert("تحذير", "لا يوجد اتصال بالإنترنت، يتم عرض البيانات المخزنة", "warning");
                     } else {
                         loader.style.display = "none";
@@ -1353,8 +1353,8 @@
                     const invoices = snapshot.val();
                     saveToLocalStorage(`invoices_${currentClientId}`, invoices);
                     currentInvoicesData = invoices;
-                    showingFullStatement = false;
-                    displayInvoices(invoices, false);
+                    showingFullStatement = true;
+                    displayInvoices(invoices, true);
                 }).catch(error => {
                     console.error("Error loading invoices:", error);
                     loader.style.display = "none";
@@ -2422,7 +2422,7 @@
                 }
                 
                 modal.style.display = "flex";
-                showingFullStatement = false;
+                showingFullStatement = true;
                 const statementButton = document.getElementById("showAllStatementBtn");
                 if (statementButton) statementButton.style.display = "none";
                 modalClientName.innerText = clientName;
