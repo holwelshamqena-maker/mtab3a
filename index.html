@@ -746,7 +746,7 @@
         <button onclick="logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
     </div>
 
-    <nav id="mobileBottomNav" aria-label="التنقل السريع للهاتف">
+    <nav id="mobileBottomNav" aria-label="التنقل السريع للهاتف" style="display:none">
         <button onclick="goToHomePage()"><i class="fas fa-home"></i><span>الرئيسية</span></button>
         <button onclick="goToMembersPage()"><i class="fas fa-users"></i><span>العملاء</span></button>
         <button class="mobile-primary" onclick="openDashboardInvoice()"><i class="fas fa-plus"></i><span>فاتورة</span></button>
@@ -1590,10 +1590,13 @@
                 if (summary) {
                     if (latestNewInvoice) {
                         const oldBalance = Number(latestNewInvoice.previousBalance) || 0;
+                        // إجمالي الحساب يجمع الرصيد المرحّل مع قيمة الفاتورة الجديدة الأصلية،
+                        // ولا يستبدل قيمة الفاتورة بالمتبقي بعد الخصم أو التحصيل.
+                        const currentNewGross = totalAll;
                         const currentNewRemaining = totalRemaining;
-                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + currentNewRemaining;
+                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + currentNewGross;
                         totalElement.innerText = reportTotal.toFixed(2);
-                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>المتبقي من الفاتورة الجديدة: ${currentNewRemaining.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
+                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الجديدة: ${currentNewGross.toFixed(2)} جنيه<br>المتبقي بعد الخصم/التحصيل: ${currentNewRemaining.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
                         summary.style.display = "block";
                     } else { summary.style.display = "none"; }
                 }
@@ -1966,6 +1969,7 @@
                     const addClientBox = document.getElementById("addClientBox");
                     const clientsSection = document.getElementById("clientsSection");
                     const dashboardSection = document.getElementById("dashboardSection");
+                    const mobileBottomNav = document.getElementById("mobileBottomNav");
                     
                     if (!loginScreen || !navbar || !menuToggle || !statsBox || !addClientBox || !clientsSection || !dashboardSection) {
                         console.error("Required DOM elements not found");
@@ -1976,6 +1980,7 @@
                     loginScreen.style.display = "none";
                     navbar.style.display = "flex";
                     menuToggle.style.display = window.innerWidth < 768 ? "block" : "none";
+                    if (mobileBottomNav) mobileBottomNav.style.display = window.innerWidth < 768 ? "flex" : "none";
                     dashboardSection.style.display = "block";
                     updateDashboardMemberActions();
                     statsBox.style.display = "none";
@@ -2257,8 +2262,34 @@
                 document.getElementById("addClientBox").scrollIntoView({behavior:"smooth", block:"center"});
             };
             window.openDashboardInvoice = function() {
-                if (!currentClientId) return showAlert("اختر عضوًا", "اختر عضوًا من القائمة أولًا لإضافة الفاتورة", "warning");
-                openInvoiceModal();
+                const entries = Object.entries(clientsData || {}).filter(([id, client]) => client && client.name);
+                if (!entries.length) return showAlert("لا يوجد عملاء", "أضف عميلًا أولًا ثم أضف الفاتورة عليه", "warning");
+                const options = entries.sort((a, b) => String(a[1].name).localeCompare(String(b[1].name), "ar"))
+                    .map(([id, client]) => `<option value="${escapeHtml(id)}">${escapeHtml(client.name)} — ${escapeHtml(client.clientType || "غير محدد")}${client.phone ? " — " + escapeHtml(client.phone) : ""}</option>`).join("");
+                Swal.fire({
+                    title: "اختر العميل أولًا",
+                    html: `<label for="invoiceClientSelector" style="display:block;text-align:right;color:#0d3b66;font-weight:800;margin:4px 2px 8px">اسم العميل الذي ستُضاف عليه الفاتورة</label><select id="invoiceClientSelector" class="swal2-select" style="width:100%;margin:0;text-align:right;direction:rtl"><option value="">-- اختر اسم العميل --</option>${options}</select>`,
+                    showCancelButton: true, confirmButtonText: "الانتقال لإضافة الفاتورة", cancelButtonText: "إلغاء",
+                    focusConfirm: false,
+                    preConfirm: () => {
+                        const selectedId = document.getElementById("invoiceClientSelector").value;
+                        if (!selectedId) { Swal.showValidationMessage("اختر اسم العميل أولًا"); return false; }
+                        return selectedId;
+                    }
+                }).then(result => {
+                    if (!result.isConfirmed) return;
+                    const clientId = result.value;
+                    const client = (clientsData || {})[clientId];
+                    if (!client) return;
+                    currentClientId = clientId;
+                    currentClientName = client.name || "";
+                    currentClientType = client.clientType || "مكتب";
+                    updateDashboardMemberActions();
+                    const selected = document.getElementById("dashboardSelectedMember");
+                    if (selected) selected.innerHTML = `العضو المختار: <strong>${escapeHtml(currentClientName)}</strong> — ${escapeHtml(currentClientType)}`;
+                    renderDashboardMembers(document.getElementById("dashboardMemberSearch")?.value || "");
+                    openInvoiceModal();
+                });
             };
             window.openDashboardCollection = function() {
                 if (!currentClientId) return showAlert("اختر عضوًا", "اختر عضوًا من القائمة أولًا لتسجيل التحصيل", "warning");
@@ -2312,6 +2343,7 @@
                     const invoiceBox = document.getElementById("invoiceBox");
                     const pricingSection = document.getElementById("pricingSection");
                     const dashboardSection = document.getElementById("dashboardSection");
+                    const mobileBottomNav = document.getElementById("mobileBottomNav");
                     const loginUser = document.getElementById("loginUser");
                     const loginPass = document.getElementById("loginPass");
                     const searchBox = document.getElementById("searchBox");
@@ -2328,6 +2360,7 @@
                     loginScreen.style.display = "flex";
                     navbar.style.display = "none";
                     menuToggle.style.display = "none";
+                    if (mobileBottomNav) mobileBottomNav.style.display = "none";
                     backdrop.style.display = "none";
                     statsBox.style.display = "none";
                     addClientBox.style.display = "none";
