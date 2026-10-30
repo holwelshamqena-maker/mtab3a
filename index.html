@@ -634,6 +634,9 @@
         .dashboard-action:disabled { opacity:.45; cursor:not-allowed; filter:grayscale(.35); transform:none; }
         .delete-btn { background:#0d3b66; color:#fff; min-width:42px; padding:9px 12px; }
         .delete-btn:hover { background:#b42318; }
+        .delete-client-modal-btn { background:#b42318 !important; color:#fff !important; }
+        .delete-client-modal-btn:hover { background:#8f1d14 !important; }
+
         .dashboard-action:disabled:hover { background:linear-gradient(135deg,#0d3b66,#1677bd); color:#fff; transform:none; }
 
         .dashboard-debt-ticker { margin-top:14px; border:1px solid #f1d28a; border-radius:14px; background:linear-gradient(180deg,#fffdf5,#fff8df); overflow:hidden; text-align:right; }
@@ -955,6 +958,7 @@
                 <button onclick="shareViaWhatsApp()"><i class="fab fa-whatsapp"></i> مشاركة عبر WhatsApp</button>
                 <button onclick="printStatement()"><i class="fas fa-print"></i> طباعة الكشف</button>
                 <button id="showAllStatementBtn" style="display:none" onclick="toggleStatementView()"><i class="fas fa-book-open"></i> عرض كل كشف الحساب (قديم + جديد)</button>
+                <button class="delete-client-modal-btn" onclick="deleteCurrentClient()"><i class="fas fa-user-times"></i> حذف العميل</button>
                 <button onclick="closeInvoicesModal()"><i class="fas fa-times"></i> إغلاق</button>
             </div>
             <div class=loader id=modalInvoicesLoader></div>
@@ -2555,6 +2559,48 @@
                 });
             };
             
+            window.deleteCurrentClient = function() {
+                const clientId = currentClientId;
+                if (!clientId) return showAlert("خطأ", "لم يتم اختيار عميل", "error");
+                if (!navigator.onLine) return showAlert("خطأ", "لا يوجد اتصال بالإنترنت", "error");
+                const currentUser = firebase.auth().currentUser;
+                if (!currentUser || !currentUser.email) return showAlert("خطأ", "تعذر التحقق من حساب المستخدم الحالي", "error");
+                Swal.fire({
+                    title: "حذف العميل نهائيًا",
+                    html: `<p style="text-align:right;line-height:1.8">سيتم حذف العميل <strong>${escapeHtml(currentClientName)}</strong> وجميع فواتيره وتحصيلاته. اكتب كلمة مرور حساب الدخول للتأكيد.</p><input id="deleteClientPassword" class="swal2-input" type="password" placeholder="كلمة المرور" autocomplete="current-password">`,
+                    icon: "warning", showCancelButton: true, confirmButtonText: "تحقق واحذف", cancelButtonText: "إلغاء", confirmButtonColor: "#b42318",
+                    preConfirm: () => {
+                        const password = document.getElementById("deleteClientPassword").value;
+                        if (!password) { Swal.showValidationMessage("اكتب كلمة المرور للتأكيد"); return false; }
+                        return password;
+                    }
+                }).then(result => {
+                    if (!result.isConfirmed) return;
+                    const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, result.value);
+                    Swal.fire({ title:"جارٍ التحقق والحذف...", allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+                    currentUser.reauthenticateWithCredential(credential).then(() => {
+                        const updates = {};
+                        updates["clients/" + clientId] = null;
+                        updates["invoices/" + clientId] = null;
+                        return db.ref().update(updates);
+                    }).then(() => {
+                        currentClientId = "";
+                        currentClientName = "";
+                        currentClientType = "";
+                        const modal = document.getElementById("invoicesModal"); if (modal) modal.style.display = "none";
+                        ["modalAddInvoiceBtn", "modalCollectBtn", "dashboardInvoiceBtn", "dashboardCollectionBtn"].forEach(id => { const button = document.getElementById(id); if (button) button.disabled = true; });
+                        if (typeof updateDashboardMemberActions === "function") updateDashboardMemberActions();
+                        window.loadClients(document.getElementById("searchBox")?.value.trim() || "", currentFilter);
+                        updateNotifications();
+                        calculateTotals();
+                        Swal.fire({ icon:"success", title:"تم الحذف", text:"تم حذف العميل وجميع فواتيره بنجاح", timer:2200, showConfirmButton:false });
+                    }).catch(error => {
+                        console.error("Secure client deletion failed:", error);
+                        const message = error.code === "auth/wrong-password" || error.code === "auth/invalid-credential" ? "كلمة المرور غير صحيحة" : "تعذر حذف العميل: " + error.message;
+                        Swal.fire("تعذر الحذف", message, "error");
+                    });
+                });
+            };
             window.showInvoices = function(clientId, clientName) {
                 currentClientId = clientId;
                 currentClientName = clientName;
