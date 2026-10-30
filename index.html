@@ -1486,11 +1486,19 @@
                 
                 tableBody.innerHTML = "";
                 const invoiceKeys = Object.keys(invoices);
+                const statementDateValue = item => {
+                    const raw = item && item.date;
+                    if (!raw) return 0;
+                    const parsed = new Date(raw);
+                    if (!isNaN(parsed.getTime())) return parsed.getTime();
+                    const arabicParsed = parseArabicDate(String(raw));
+                    return arabicParsed && !isNaN(arabicParsed.getTime()) ? arabicParsed.getTime() : 0;
+                };
                 invoiceKeys.forEach(invoiceId => {
                     const item = invoices[invoiceId] || {};
                     if (!item.isPayment && item.invoiceMode === "new") {
-                        if (!latestNewInvoice || String(item.date || "") >= String(latestNewInvoice.date || "")) { latestNewInvoice = item; latestNewInvoiceId = invoiceId; }
-                        if (!firstNewInvoice || String(item.date || "") < String(firstNewInvoice.date || "")) { firstNewInvoice = item; firstNewInvoiceId = invoiceId; }
+                        if (!latestNewInvoice || statementDateValue(item) >= statementDateValue(latestNewInvoice)) { latestNewInvoice = item; latestNewInvoiceId = invoiceId; }
+                        if (!firstNewInvoice || statementDateValue(item) < statementDateValue(firstNewInvoice)) { firstNewInvoice = item; firstNewInvoiceId = invoiceId; }
                     }
                 });
                 const hasOlderStatement = Boolean(latestNewInvoiceId && invoiceKeys.some(id => id !== latestNewInvoiceId));
@@ -1501,9 +1509,17 @@
                 }
                 // العرض المختصر يعرض آخر فاتورة جديدة فقط؛ وما قبلها يرحّل كسطر رصيد مرحّل.
                 // الفواتير القديمة والتفاصيل السابقة تظهر عند فتح الكشف الكامل.
-                const latestNewDate = latestNewInvoice ? String(latestNewInvoice.date || "") : "";
-                const latestStatementPaymentKeys = invoiceKeys.filter(id => { const item = invoices[id] || {}; return Boolean(item.isPayment) && latestNewDate && String(item.date || "") >= latestNewDate; });
-                const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId, ...latestStatementPaymentKeys] : invoiceKeys;
+                const latestNewDateValue = latestNewInvoice ? statementDateValue(latestNewInvoice) : 0;
+                const latestStatementPaymentKeys = invoiceKeys.filter(id => {
+                    const item = invoices[id] || {};
+                    const itemDateValue = statementDateValue(item);
+                    return Boolean(item.isPayment) && latestNewDateValue > 0 && itemDateValue >= latestNewDateValue;
+                }).sort((a, b) => statementDateValue(invoices[a] || {}) - statementDateValue(invoices[b] || {}));
+                const chronologicallyOrderedKeys = [...invoiceKeys].sort((a, b) => {
+                    const difference = statementDateValue(invoices[a] || {}) - statementDateValue(invoices[b] || {});
+                    return difference || invoiceKeys.indexOf(a) - invoiceKeys.indexOf(b);
+                });
+                const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId, ...latestStatementPaymentKeys] : chronologicallyOrderedKeys;
                 // في العرض المختصر أضف الرصيد السابق للفاتورة الأحدث كسطر مستقل في أعلى الجدول.
                 // هذا السطر للعرض ولا يدخل مرة أخرى في حساب المديونية.
                 if (!showFullStatement && latestNewInvoiceId && (Number(latestNewInvoice.previousBalance) || 0) > 0) {
