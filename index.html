@@ -1505,15 +1505,22 @@
                         if (!firstNewInvoice || statementDateValue(item) < statementDateValue(firstNewInvoice)) { firstNewInvoice = item; firstNewInvoiceId = invoiceId; }
                     }
                 });
-                const hasOlderStatement = Boolean(latestNewInvoiceId && invoiceKeys.some(id => id !== latestNewInvoiceId));
+                const latestNewDateValue = latestNewInvoice ? statementDateValue(latestNewInvoice) : 0;
+                // كل الأصناف التي أضيفت كـ«فاتورة جديدة» في نفس التاريخ تُعد دفعة جديدة واحدة.
+                // لذلك تظهر كلها معًا، بينما يؤخذ الرصيد المرحّل من أول صنف في هذه الدفعة فقط.
+                const newBatchInvoiceKeys = latestNewDateValue > 0 ? invoiceKeys.filter(id => {
+                    const item = invoices[id] || {};
+                    return !item.isPayment && item.invoiceMode === "new" && statementDateValue(item) === latestNewDateValue;
+                }).sort((a, b) => invoiceKeys.indexOf(a) - invoiceKeys.indexOf(b)) : [];
+                const batchCarryInvoice = newBatchInvoiceKeys.map(id => invoices[id] || {})
+                    .sort((a, b) => statementDateValue(a) - statementDateValue(b))[0] || latestNewInvoice;
+                const hasOlderStatement = Boolean(newBatchInvoiceKeys.length && invoiceKeys.some(id => !newBatchInvoiceKeys.includes(id)));
                 const statementButton = document.getElementById("showAllStatementBtn");
                 if (statementButton) {
                     statementButton.style.display = hasOlderStatement ? "inline-block" : "none";
                     statementButton.textContent = showFullStatement ? "🧾 عرض الفاتورة الجديدة فقط" : "📚 عرض كل كشف الحساب (قديم + جديد)";
                 }
-                // العرض المختصر يعرض آخر فاتورة جديدة فقط؛ وما قبلها يرحّل كسطر رصيد مرحّل.
-                // الفواتير القديمة والتفاصيل السابقة تظهر عند فتح الكشف الكامل.
-                const latestNewDateValue = latestNewInvoice ? statementDateValue(latestNewInvoice) : 0;
+                // العرض المختصر يعرض جميع أصناف الدفعة الجديدة الأخيرة؛ والفواتير الأقدم تُرحّل.
                 const latestStatementPaymentKeys = invoiceKeys.filter(id => {
                     const item = invoices[id] || {};
                     const itemDateValue = statementDateValue(item);
@@ -1523,15 +1530,15 @@
                     const difference = statementDateValue(invoices[a] || {}) - statementDateValue(invoices[b] || {});
                     return difference || invoiceKeys.indexOf(a) - invoiceKeys.indexOf(b);
                 });
-                const visibleInvoiceKeys = (!showFullStatement && latestNewInvoiceId) ? [latestNewInvoiceId, ...latestStatementPaymentKeys] : chronologicallyOrderedKeys;
-                // في العرض المختصر أضف الرصيد السابق للفاتورة الأحدث كسطر مستقل في أعلى الجدول.
+                const visibleInvoiceKeys = (!showFullStatement && newBatchInvoiceKeys.length) ? [...newBatchInvoiceKeys, ...latestStatementPaymentKeys] : chronologicallyOrderedKeys;
+                // في العرض المختصر أضف الرصيد السابق للدفعة الجديدة كسطر مستقل في أعلى الجدول.
                 // هذا السطر للعرض ولا يدخل مرة أخرى في حساب المديونية.
-                if (!showFullStatement && latestNewInvoiceId && (Number(latestNewInvoice.previousBalance) || 0) > 0) {
+                if (!showFullStatement && newBatchInvoiceKeys.length && (Number(batchCarryInvoice.previousBalance) || 0) > 0) {
                     const carryRow = document.createElement("tr");
                     carryRow.className = "carry-forward-row";
-                    const carryBalance = (Number(latestNewInvoice.previousBalance) || 0).toFixed(2);
+                    const carryBalance = (Number(batchCarryInvoice.previousBalance) || 0).toFixed(2);
                     carryRow.innerHTML = `
-                        <td>${formatDate(latestNewInvoice.date)}</td>
+                        <td>${formatDate(batchCarryInvoice.date)}</td>
                         <td>رصيد مرحّل من الفواتير السابقة</td>
                         <td>-</td><td>-</td><td>-</td><td>-</td>
                         <td>${carryBalance}</td><td>-</td><td>${carryBalance}</td>
@@ -1609,7 +1616,7 @@
                 const summary = document.getElementById("modalCarryForwardSummary");
                 if (summary) {
                     if (latestNewInvoice) {
-                        const oldBalance = Number(latestNewInvoice.previousBalance) || 0;
+                        const oldBalance = Number(batchCarryInvoice?.previousBalance) || 0;
                         // إجمالي الحساب يجمع الرصيد المرحّل مع قيمة الفاتورة الجديدة الأصلية،
                         // ولا يستبدل قيمة الفاتورة بالمتبقي بعد الخصم أو التحصيل.
                         const currentNewGross = totalAll;
