@@ -1465,7 +1465,11 @@
                         return dateDifference || String(a.key).localeCompare(String(b.key));
                     });
                     const latest = items[items.length - 1];
-                    return latest && latest.statementId ? latest.statementId : null;
+                    if (latest && latest.statementId) return latest.statementId;
+                    // توافق مع الفواتير التي أُنشئت قبل إضافة statementId:
+                    // اعتبر آخر دفعة «فاتورة جديدة» هي الفاتورة الحالية.
+                    const legacyNew = items.filter(item => item.invoiceMode === "new").pop();
+                    return legacyNew ? `legacy-${dateValue(legacyNew)}` : null;
                 });
             }
             window.previewCarryForwardBalance = function() {
@@ -1546,7 +1550,11 @@
                 const currentStatementId = latestStatementInvoice?.item?.statementId || null;
                 const currentBatchInvoiceKeys = currentStatementId ? invoiceKeys.filter(id => {
                     const item = invoices[id] || {};
-                    return !item.isPayment && item.statementId === currentStatementId;
+                    if (item.isPayment) return false;
+                    if (item.statementId === currentStatementId) return true;
+                    // ضم عناصر الفاتورة الجديدة القديمة التي لا تحمل statementId
+                    // إلى الإضافة الحالية التي استُخدم لها معرّف legacy-...
+                    return currentStatementId.startsWith("legacy-") && !item.statementId && ["new", "append"].includes(item.invoiceMode) && statementDateValue(item) === Number(currentStatementId.slice(7));
                 }) : [];
                 const currentBatchNewInvoice = currentBatchInvoiceKeys
                     .map(id => invoices[id] || {})
@@ -2064,6 +2072,7 @@
                     
                     window.loadClients();
                     calculateTotals();
+                    ensurePricingCatalog();
                     
                     showAlert("مرحبًا!", "تم تسجيل الدخول بنجاح.", "success");
                     
@@ -2164,6 +2173,8 @@
             let pricingItems = {};
             let pricingFilter = "all";
             let currentClientType = "";
+            let pricingCatalogPromise = null;
+            let pricingCatalogLoaded = false;
 
             function pricingRef() { return db.ref("pricingCatalog"); }
             function escapeHtml(value) {
@@ -2172,17 +2183,33 @@
             function loadPricingCatalog(callback) {
                 const loader = document.getElementById("pricingLoader");
                 if (loader) loader.style.display = "block";
-                pricingRef().once("value").then(snapshot => {
+                if (pricingCatalogPromise) return pricingCatalogPromise.then(() => { if (callback) callback(); });
+                pricingCatalogPromise = pricingRef().once("value").then(snapshot => {
                     pricingItems = snapshot.val() || {};
+                    pricingCatalogLoaded = true;
+                    saveToLocalStorage("pricingCatalogCache", pricingItems);
                     if (loader) loader.style.display = "none";
                     renderPricingTable();
                     populateInvoicePricing();
                     if (callback) callback();
                 }).catch(error => {
+                    pricingCatalogPromise = null;
                     if (loader) loader.style.display = "none";
                     console.error("Error loading pricing catalog:", error);
-                    showAlert("خطأ", "تعذر تحميل قائمة الأسعار: " + error.message, "error");
+                    if (!pricingCatalogLoaded) showAlert("خطأ", "تعذر تحميل قائمة الأسعار: " + error.message, "error");
                 });
+                return pricingCatalogPromise;
+            }
+            function ensurePricingCatalog() {
+                const cached = getFromLocalStorage("pricingCatalogCache");
+                if (!pricingCatalogLoaded && cached && typeof cached === "object") {
+                    pricingItems = cached;
+                    pricingCatalogLoaded = true;
+                    populateInvoicePricing();
+                    renderPricingTable();
+                }
+                if (!pricingCatalogPromise) loadPricingCatalog();
+                return pricingCatalogPromise || Promise.resolve(pricingItems);
             }
             function renderPricingTable() {
                 const body = document.querySelector("#pricingTable tbody");
@@ -2204,8 +2231,11 @@
             function populateInvoicePricing() {
                 ["manualPricingItem", "bannerPricingItem"].forEach(id => {
                     const select = document.getElementById(id); if (!select) return;
-                    const selected = select.value; select.innerHTML = '<option value="">-- اختر صنفًا من التسعيرة --</option>';
-                    const catalog = pricingItems[currentClientType] || {};
+                    const selected = select.value;
+                    select.innerHTML = `<option value="">${pricingCatalogLoaded ? "-- اختر صنفًا من التسعيرة --" : "-- جارٍ تحميل قائمة الأسعار... --"}</option>`;
+                    const catalogType = String(currentClientType || "").trim();
+                    const catalogKey = Object.keys(pricingItems || {}).find(type => String(type).trim() === catalogType);
+                    const catalog = catalogKey ? (pricingItems[catalogKey] || {}) : {};
                     Object.keys(catalog).forEach(itemId => {
                         const item = catalog[itemId];
                         const option = document.createElement("option"); option.value = itemId; option.textContent = `${item.name} — ${Number(item.price || 0).toFixed(2)} جنيه${item.unit ? " / " + item.unit : ""}`;
@@ -2659,7 +2689,15 @@
             window.showInvoices = function(clientId, clientName) {
                 currentClientId = clientId;
                 currentClientName = clientName;
-                db.ref("clients/" + clientId).once("value").then(snapshot => { currentClientType = (snapshot.val() || {}).clientType || "مكتب"; populateInvoicePricing(); });
+                ensurePricingCatalog();
+                db.ref("clients/" + clientId).once("value").then(snapshot => {
+                    currentClientType = String((snapshot.val() || {}).clientType || "مكتب").trim();
+                    populateInvoicePricing();
+                    return ensurePricingCatalog();
+                }).then(() => populateInvoicePricing()).catch(error => {
+                    console.error("Error loading client pricing:", error);
+                    populateInvoicePricing();
+                });
                 
                 const modal = document.getElementById("invoicesModal");
                 const modalClientName = document.getElementById("modalClientName");
@@ -2753,6 +2791,7 @@
                 document.getElementById("bannerForm").style.display = "none";
                 document.getElementById("manualForm").style.display = "none";
                 document.getElementById("invoiceMode").value = "new";
+                ensurePricingCatalog().then(() => populateInvoicePricing());
                 previewCarryForwardBalance();
                 
                 if (window.innerWidth < 768) {
