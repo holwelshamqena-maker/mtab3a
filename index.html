@@ -834,7 +834,7 @@
                 <label style="display:block;text-align:right;font-weight:700;color:#0d3b66">نوع التعامل مع الفاتورة
                     <select id="invoiceMode" onchange="previewCarryForwardBalance()">
                         <option value="new">فاتورة جديدة — ترحيل الرصيد القديم</option>
-                        <option value="append">➕ إضافة على الفواتير القديمة</option>
+                        <option value="append">➕ إضافة على الفاتورة الحالية</option>
                     </select>
                 </label>
                 <div id="carryForwardHint" class="price-hint">سيتم حساب الرصيد القديم وترحيله مع الفاتورة الجديدة عند المشاركة.</div>
@@ -1447,17 +1447,49 @@
                     return Math.max(0, total - paid);
                 });
             }
+            function getCurrentInvoiceBatch() {
+                return db.ref("invoices/" + currentClientId).once("value").then(snapshot => {
+                    const items = [];
+                    const dateValue = item => {
+                        const parsed = new Date(item?.date || "");
+                        if (!isNaN(parsed.getTime())) return parsed.getTime();
+                        const arabicParsed = parseArabicDate(String(item?.date || ""));
+                        return arabicParsed && !isNaN(arabicParsed.getTime()) ? arabicParsed.getTime() : 0;
+                    };
+                    if (snapshot.exists()) snapshot.forEach(child => {
+                        const item = child.val() || {};
+                        if (!item.isPayment) items.push({ key: child.key, ...item });
+                    });
+                    items.sort((a, b) => {
+                        const dateDifference = dateValue(a) - dateValue(b);
+                        return dateDifference || String(a.key).localeCompare(String(b.key));
+                    });
+                    const latest = items[items.length - 1];
+                    return latest && latest.statementId ? latest.statementId : null;
+                });
+            }
             window.previewCarryForwardBalance = function() {
                 const hint = document.getElementById("carryForwardHint");
                 const mode = document.getElementById("invoiceMode").value;
                 if (!hint) return;
-                if (mode === "append") { hint.textContent = "ستضاف الفاتورة إلى الفواتير الحالية بدون إنشاء رصيد مرحّل."; return; }
+                if (mode === "append") { hint.textContent = "ستضاف الفاتورة إلى الفاتورة الحالية، ولن تُضاف إلى الفواتير القديمة التي تم ترحيلها."; return; }
                 hint.textContent = "جارٍ حساب الرصيد السابق...";
                 getClientOutstandingBalance().then(balance => { hint.textContent = `الرصيد السابق الذي سيُرحّل: ${balance.toFixed(2)} جنيه — سيظهر مع قيمة الفاتورة الجديدة عند المشاركة.`; }).catch(() => { hint.textContent = "سيتم حساب الرصيد السابق عند حفظ الفاتورة."; });
             };
             function getInvoiceModeData() {
                 const mode = document.getElementById("invoiceMode")?.value || "append";
-                return mode === "new" ? getClientOutstandingBalance().then(previousBalance => ({ invoiceMode: "new", previousBalance: previousBalance.toFixed(2) })) : Promise.resolve({ invoiceMode: "append", previousBalance: "0.00" });
+                if (mode === "new") {
+                    return getClientOutstandingBalance().then(previousBalance => ({
+                        invoiceMode: "new",
+                        previousBalance: previousBalance.toFixed(2),
+                        statementId: `statement-${Date.now()}`
+                    }));
+                }
+                return getCurrentInvoiceBatch().then(statementId => ({
+                    invoiceMode: "append",
+                    previousBalance: "0.00",
+                    statementId: statementId || `statement-${Date.now()}`
+                }));
             }
 
             // Display invoices in the modal
@@ -1506,15 +1538,31 @@
                     }
                 });
                 const latestNewDateValue = latestNewInvoice ? statementDateValue(latestNewInvoice) : 0;
+                const latestStatementInvoice = invoiceKeys
+                    .map(id => ({ id, item: invoices[id] || {} }))
+                    .filter(entry => !entry.item.isPayment && entry.item.statementId)
+                    .sort((a, b) => statementDateValue(a.item) - statementDateValue(b.item) || invoiceKeys.indexOf(a.id) - invoiceKeys.indexOf(b.id))
+                    .pop();
+                const currentStatementId = latestStatementInvoice?.item?.statementId || null;
+                const currentBatchInvoiceKeys = currentStatementId ? invoiceKeys.filter(id => {
+                    const item = invoices[id] || {};
+                    return !item.isPayment && item.statementId === currentStatementId;
+                }) : [];
+                const currentBatchNewInvoice = currentBatchInvoiceKeys
+                    .map(id => invoices[id] || {})
+                    .find(item => item.invoiceMode === "new") || null;
                 // كل الأصناف التي أضيفت كـ«فاتورة جديدة» في نفس التاريخ تُعد دفعة جديدة واحدة.
                 // لذلك تظهر كلها معًا، بينما يؤخذ الرصيد المرحّل من أول صنف في هذه الدفعة فقط.
-                const newBatchInvoiceKeys = latestNewDateValue > 0 ? invoiceKeys.filter(id => {
+                const newBatchInvoiceKeys = currentBatchInvoiceKeys.length ? currentBatchInvoiceKeys : (latestNewDateValue > 0 ? invoiceKeys.filter(id => {
                     const item = invoices[id] || {};
                     return !item.isPayment && item.invoiceMode === "new" && statementDateValue(item) === latestNewDateValue;
-                }).sort((a, b) => invoiceKeys.indexOf(a) - invoiceKeys.indexOf(b)) : [];
-                const batchCarryInvoice = newBatchInvoiceKeys.map(id => invoices[id] || {})
+                }).sort((a, b) => invoiceKeys.indexOf(a) - invoiceKeys.indexOf(b)) : []);
+                const batchCarryInvoice = (currentBatchNewInvoice ? [currentBatchNewInvoice] : newBatchInvoiceKeys.map(id => invoices[id] || {}))
                     .sort((a, b) => statementDateValue(a) - statementDateValue(b))[0] || latestNewInvoice;
-                const hasOlderStatement = Boolean(newBatchInvoiceKeys.length && invoiceKeys.some(id => !newBatchInvoiceKeys.includes(id)));
+                const hasOlderStatement = Boolean(newBatchInvoiceKeys.length && invoiceKeys.some(id => {
+                    const item = invoices[id] || {};
+                    return !newBatchInvoiceKeys.includes(id) && !item.isPayment;
+                }));
                 const statementButton = document.getElementById("showAllStatementBtn");
                 if (statementButton) {
                     statementButton.style.display = hasOlderStatement ? "inline-block" : "none";
@@ -1524,7 +1572,8 @@
                 const latestStatementPaymentKeys = invoiceKeys.filter(id => {
                     const item = invoices[id] || {};
                     const itemDateValue = statementDateValue(item);
-                    return Boolean(item.isPayment) && latestNewDateValue > 0 && itemDateValue >= latestNewDateValue;
+                    const batchStartDate = currentBatchInvoiceKeys.length ? Math.min(...currentBatchInvoiceKeys.map(key => statementDateValue(invoices[key] || {}))) : latestNewDateValue;
+                    return Boolean(item.isPayment) && batchStartDate > 0 && itemDateValue >= batchStartDate;
                 }).sort((a, b) => statementDateValue(invoices[a] || {}) - statementDateValue(invoices[b] || {}));
                 const chronologicallyOrderedKeys = [...invoiceKeys].sort((a, b) => {
                     const difference = statementDateValue(invoices[a] || {}) - statementDateValue(invoices[b] || {});
@@ -1604,7 +1653,9 @@
                     tableBody.appendChild(row);
                 });
                 
-                const totalRemaining = totalAll - totalPaid;
+                const currentBatchRemaining = totalAll - totalPaid;
+                const oldBalance = Number(batchCarryInvoice?.previousBalance) || 0;
+                const totalRemaining = showFullStatement ? currentBatchRemaining : oldBalance + currentBatchRemaining;
                 
                 if (isNaN(totalRemaining)) {
                     console.error("Invalid total calculation:", totalAll, totalPaid);
@@ -1615,15 +1666,12 @@
                 }
                 const summary = document.getElementById("modalCarryForwardSummary");
                 if (summary) {
-                    if (latestNewInvoice) {
-                        const oldBalance = Number(batchCarryInvoice?.previousBalance) || 0;
-                        // إجمالي الحساب يجمع الرصيد المرحّل مع قيمة الفاتورة الجديدة الأصلية،
-                        // ولا يستبدل قيمة الفاتورة بالمتبقي بعد الخصم أو التحصيل.
+                    if (latestNewInvoice || newBatchInvoiceKeys.length) {
+                        // في العرض المختصر: الرصيد المرحّل + كل عناصر الفاتورة الحالية - التحصيلات.
+                        // في الكشف الكامل: مجموع كل الفواتير - كل التحصيلات مرة واحدة.
                         const currentNewGross = totalAll;
-                        const currentNewRemaining = totalRemaining;
-                        const reportTotal = showFullStatement ? totalRemaining : oldBalance + currentNewGross;
-                        totalElement.innerText = reportTotal.toFixed(2);
-                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الجديدة"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الجديدة: ${currentNewGross.toFixed(2)} جنيه<br>المتبقي بعد الخصم/التحصيل: ${currentNewRemaining.toFixed(2)} جنيه<br>إجمالي الحساب الحالي: ${reportTotal.toFixed(2)} جنيه`;
+                        const currentNewRemaining = currentBatchRemaining;
+                        summary.innerHTML = `🧾 <strong>${showFullStatement ? "كشف الحساب الكامل" : "الفاتورة الحالية"}</strong><br>الرصيد السابق المُرحّل: ${oldBalance.toFixed(2)} جنيه<br>قيمة الفاتورة الحالية (بكل إضافاتها): ${currentNewGross.toFixed(2)} جنيه<br>المتبقي بعد الخصم/التحصيل: ${currentNewRemaining.toFixed(2)} جنيه<br>إجمالي الحساب الحالي (قديم + جديد): ${totalRemaining.toFixed(2)} جنيه`;
                         summary.style.display = "block";
                     } else { summary.style.display = "none"; }
                 }
