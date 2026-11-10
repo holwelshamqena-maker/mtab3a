@@ -602,6 +602,14 @@
         .navbar-search-suggestion small { color:#718096; margin-top:2px; }
         .navbar-search-empty { padding:14px; color:#718096; text-align:center; }
         @media (max-width:767px) { #navbarSearchWrap { width:90%; min-width:0; } .navbar-search-suggestions { position:fixed; top:100px; right:18px; left:18px; width:auto; } }
+        .data-tools-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:14px 0; }
+        .data-stat-card { background:#f5f9fd; border:1px solid #d8e5f0; border-radius:14px; padding:16px; text-align:center; }
+        .data-stat-card strong { display:block; color:#0d3b66; font-size:20px; margin-top:7px; }
+        .data-stat-card small { color:#718096; }
+        .data-tool-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
+        .data-tool-actions button { min-width:210px; }
+        .data-tool-note { color:#52677d; background:#fff9e8; border-right:4px solid #e2a900; border-radius:8px; padding:10px 12px; line-height:1.8; }
+        @media (max-width:767px) { .data-tools-grid { grid-template-columns:1fr; } .data-tool-actions button { width:100%; } }
         /* لوحة التحكم الجديدة */
         .dashboard-section { display:none; position:relative; z-index:1; margin:88px 20px 20px; padding:18px; background:#f5f8fc; border-radius:18px; box-shadow:0 8px 30px rgba(13,59,102,.12); }
         .dashboard-header { display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap; margin-bottom:16px; }
@@ -744,6 +752,7 @@
         <button onclick="goToMembersPage()"><i class="fas fa-users"></i> قائمة الأعضاء</button>
         <button onclick="refreshPage()"><i class="fas fa-sync-alt"></i> تحديث الصفحة</button>
         <button onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
+        <button onclick="goToDataToolsPage()"><i class="fas fa-database"></i> أدوات البيانات</button>
         <button onclick="openPaymentsLedger()"><i class="fas fa-history"></i> سجل التحصيلات</button>
         <button onclick="goToSalaries()"><i class="fas fa-money-check-alt"></i> مرتبات</button>
         <button onclick="logout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
@@ -791,6 +800,7 @@
                     <button class="dashboard-action" onclick="goToMembersPage()"><i class="fas fa-users"></i> إدارة الأعضاء</button>
                     <button class="dashboard-action" onclick="openPaymentsLedger()"><i class="fas fa-history"></i> سجل التحصيلات</button>
                     <button class="dashboard-action" onclick="goToPricingPage()"><i class="fas fa-tags"></i> قائمة الأسعار</button>
+                    <button class="dashboard-action" onclick="goToDataToolsPage()"><i class="fas fa-database"></i> أدوات البيانات</button>
                 </div>
             </aside>
         </div>
@@ -1037,6 +1047,31 @@
         <div class="loader" id="pricingLoader"></div>
         <div style="overflow-x:auto"><table id="pricingTable"><thead><tr><th>نوع العميل</th><th>الصنف</th><th>الوحدة</th><th>السعر</th><th>إجراء</th></tr></thead><tbody></tbody></table></div>
         <p id="pricingEmpty" style="text-align:center;color:#777;display:none">لا توجد أسعار مضافة حتى الآن.</p>
+    </div>
+    <div style="display:none" id="dataToolsSection" class="box">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0"><i class="fas fa-database"></i> أدوات البيانات والنسخ الاحتياطي</h3>
+            <button onclick="goToMembersPage()"><i class="fas fa-arrow-right"></i> العودة لقائمة الأعضاء</button>
+        </div>
+        <p class="data-tool-note"><strong>تنبيه:</strong> حجم قاعدة البيانات المعروض تقديري محسوب من البيانات الفعلية المخزنة. لا يتيح Firebase للصفحة معرفة الحصة المتبقية الفعلية للحساب، لذلك يمكنك تحديد السعة المرجعية المستخدمة لحساب المتبقي.</p>
+        <div class="data-tools-grid">
+            <div class="data-stat-card"><small>البيانات المستخدمة تقديريًا</small><strong id="dataUsedSize">—</strong></div>
+            <div class="data-stat-card"><small>السعة المرجعية</small><strong id="dataCapacitySize">—</strong></div>
+            <div class="data-stat-card"><small>المتبقي حسب السعة المرجعية</small><strong id="dataRemainingSize">—</strong></div>
+        </div>
+        <div style="max-width:360px;margin:0 auto;text-align:center">
+            <label>السعة المرجعية بالميجابايت
+                <input id="dataCapacityMb" type="number" min="1" step="1" value="1024" onchange="refreshDataStorageStats()">
+            </label>
+        </div>
+        <div id="dataBackupMeta" style="text-align:center;color:#52677d;margin-top:12px">جارٍ حساب حجم البيانات...</div>
+        <div class="data-tool-actions">
+            <button onclick="exportDataBackup()"><i class="fas fa-download"></i> تنزيل نسخة احتياطية كاملة</button>
+            <button onclick="document.getElementById('dataRestoreFile').click()"><i class="fas fa-upload"></i> استرجاع نسخة احتياطية</button>
+            <input id="dataRestoreFile" type="file" accept="application/json,.json" style="display:none" onchange="importDataBackupFile(event)">
+            <button onclick="refreshDataStorageStats()"><i class="fas fa-sync-alt"></i> تحديث حجم البيانات</button>
+        </div>
+        <p style="text-align:center;color:#718096;margin-top:14px">النسخة تشمل العملاء، جميع الفواتير والتحصيلات، وقائمة الأسعار، ويمكن استخدامها للاسترجاع لاحقًا.</p>
     </div>
     <div style=display:none id=invoiceBox class=box>
         <h3>اسم العميل:<span id=selectedClientName></span></h3>
@@ -2102,6 +2137,8 @@
                 const dashboardSection = document.getElementById("dashboardSection");
                 const pricingSection = document.getElementById("pricingSection");
                 if (pricingSection) pricingSection.style.display = "none";
+                const dataToolsSection = document.getElementById("dataToolsSection");
+                if (dataToolsSection) dataToolsSection.style.display = "none";
                 if (dashboardSection) dashboardSection.style.display = "block";
                 const addInvoiceBtn = document.getElementById("addInvoiceBtn");
                 const collectBtn = document.getElementById("collectBtn");
@@ -2192,6 +2229,7 @@
                     renderPricingTable();
                     populateInvoicePricing();
                     if (callback) callback();
+                    pricingCatalogPromise = null;
                 }).catch(error => {
                     pricingCatalogPromise = null;
                     if (loader) loader.style.display = "none";
@@ -2292,10 +2330,104 @@
             window.filterPricing = function(filter) { pricingFilter = filter; document.querySelectorAll("[data-pricing-filter]").forEach(btn => btn.classList.toggle("active", btn.dataset.pricingFilter === filter)); renderPricingTable(); };
             window.goToPricingPage = function() {
                 if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
-                ["dashboardSection","statsBox","addClientBox","clientsSection","invoiceBox"].forEach(id => { const el=document.getElementById(id); if(el) el.style.display="none"; });
+                ["dashboardSection","statsBox","addClientBox","clientsSection","invoiceBox","dataToolsSection"].forEach(id => { const el=document.getElementById(id); if(el) el.style.display="none"; });
                 document.getElementById("pricingSection").style.display = "block";
                 loadPricingCatalog();
                 if (window.innerWidth < 768) { document.getElementById("navbar").classList.remove("open"); document.getElementById("sidebarBackdrop").classList.remove("open"); }
+            };
+
+            function formatDataSize(bytes) {
+                const value = Number(bytes) || 0;
+                if (value < 1024) return `${value.toFixed(0)} بايت`;
+                if (value < 1024 * 1024) return `${(value / 1024).toFixed(2)} كيلوبايت`;
+                if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(2)} ميجابايت`;
+                return `${(value / (1024 * 1024 * 1024)).toFixed(2)} جيجابايت`;
+            }
+            function dataSizeOf(value) {
+                try { return new Blob([JSON.stringify(value ?? null)]).size; }
+                catch (error) { return new TextEncoder().encode(JSON.stringify(value ?? null)).length; }
+            }
+            function getBackupPayload() {
+                return Promise.all(["clients", "invoices", "pricingCatalog"].map(key => db.ref(key).once("value").then(snapshot => [key, snapshot.val() || null])))
+                    .then(entries => Object.fromEntries(entries));
+            }
+            window.refreshDataStorageStats = function() {
+                if (!isLoggedIn || !window.db) return;
+                const used = document.getElementById("dataUsedSize");
+                const capacity = document.getElementById("dataCapacitySize");
+                const remaining = document.getElementById("dataRemainingSize");
+                const meta = document.getElementById("dataBackupMeta");
+                const capacityInput = document.getElementById("dataCapacityMb");
+                const configuredMb = Math.max(1, Number(capacityInput?.value) || 1024);
+                saveToLocalStorage("dataCapacityMb", configuredMb);
+                if (capacityInput) capacityInput.value = configuredMb;
+                if (used) used.textContent = "جارٍ الحساب...";
+                getBackupPayload().then(payload => {
+                    const usedBytes = dataSizeOf(payload);
+                    const capacityBytes = configuredMb * 1024 * 1024;
+                    if (used) used.textContent = formatDataSize(usedBytes);
+                    if (capacity) capacity.textContent = formatDataSize(capacityBytes);
+                    if (remaining) remaining.textContent = formatDataSize(Math.max(0, capacityBytes - usedBytes));
+                    const clientsCount = Object.keys(payload.clients || {}).length;
+                    const invoiceCount = Object.values(payload.invoices || {}).reduce((sum, group) => sum + Object.keys(group || {}).length, 0);
+                    if (meta) meta.textContent = `آخر تحديث: ${new Date().toLocaleString("ar-EG")} — العملاء: ${clientsCount} — سجلات الفواتير والتحصيل: ${invoiceCount}`;
+                }).catch(error => {
+                    console.error("Error calculating data size:", error);
+                    if (used) used.textContent = "تعذر الحساب";
+                    if (meta) meta.textContent = "تعذر قراءة بيانات قاعدة البيانات";
+                });
+            };
+            window.goToDataToolsPage = function() {
+                if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
+                ["dashboardSection","statsBox","addClientBox","clientsSection","invoiceBox","pricingSection"].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = "none"; });
+                const section = document.getElementById("dataToolsSection");
+                if (section) section.style.display = "block";
+                const savedCapacity = getFromLocalStorage("dataCapacityMb");
+                const capacityInput = document.getElementById("dataCapacityMb");
+                if (capacityInput && savedCapacity) capacityInput.value = savedCapacity;
+                refreshDataStorageStats();
+                if (window.innerWidth < 768) { document.getElementById("navbar").classList.remove("open"); document.getElementById("sidebarBackdrop").classList.remove("open"); }
+            };
+            window.exportDataBackup = function() {
+                if (!isLoggedIn) return showAlert("خطأ", "يرجى تسجيل الدخول أولاً", "error");
+                Swal.fire({ title:"جارٍ تجهيز النسخة الاحتياطية...", allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+                getBackupPayload().then(payload => {
+                    const backup = { backupVersion: 1, app: "نظام فواتير مطبعة طارق أبوهمام", createdAt: new Date().toISOString(), data: payload };
+                    const blob = new Blob([JSON.stringify(backup, null, 2)], { type:"application/json;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a"); link.href = url; link.download = `نسخة-احتياطية-الفواتير-${new Date().toISOString().slice(0,10)}.json`; link.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    Swal.close(); showAlert("تم بنجاح", `تم تنزيل النسخة الاحتياطية (${formatDataSize(blob.size)})`, "success");
+                }).catch(error => { Swal.close(); showAlert("خطأ", "تعذر إنشاء النسخة الاحتياطية: " + error.message, "error"); });
+            };
+            window.importDataBackupFile = function(event) {
+                const input = event.target;
+                const file = input?.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const backup = JSON.parse(reader.result);
+                        const payload = backup && backup.data;
+                        if (!payload || typeof payload !== "object" || !("clients" in payload) || !("invoices" in payload) || !("pricingCatalog" in payload)) throw new Error("صيغة النسخة غير صحيحة");
+                        const clientsCount = Object.keys(payload.clients || {}).length;
+                        Swal.fire({ title:"تأكيد الاسترجاع", html:`سيتم استبدال بيانات العملاء والفواتير وقائمة الأسعار بالنسخة المحددة.<br><strong>عدد العملاء: ${clientsCount}</strong><br>لا يمكن التراجع عن هذه العملية إلا باستخدام نسخة احتياطية أخرى.`, icon:"warning", showCancelButton:true, confirmButtonText:"نعم، استرجع النسخة", cancelButtonText:"إلغاء" }).then(result => {
+                            if (!result.isConfirmed) return;
+                            Swal.fire({ title:"جارٍ استرجاع البيانات...", allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+                            return Promise.all(["clients", "invoices", "pricingCatalog"].map(key => db.ref(key).set(payload[key] || null)));
+                        }).then(result => {
+                            if (!result) return;
+                            pricingItems = payload.pricingCatalog || {};
+                            pricingCatalogLoaded = true;
+                            pricingCatalogPromise = Promise.resolve(pricingItems);
+                            saveToLocalStorage("pricingCatalogCache", pricingItems);
+                            Swal.close(); refreshDataStorageStats(); loadClients(); calculateTotals(); showAlert("تم الاسترجاع", "تم استرجاع العملاء والفواتير وقائمة الأسعار بنجاح.", "success");
+                        }).catch(error => { Swal.close(); showAlert("خطأ", "تعذر استرجاع النسخة: " + error.message, "error"); });
+                    } catch (error) { showAlert("خطأ", "ملف النسخة الاحتياطية غير صالح أو تالف.", "error"); }
+                    input.value = "";
+                };
+                reader.onerror = () => { input.value = ""; showAlert("خطأ", "تعذر قراءة ملف النسخة الاحتياطية.", "error"); };
+                reader.readAsText(file);
             };
 
 
@@ -2405,6 +2537,7 @@
                 const dashboard = document.getElementById("dashboardSection"); if (dashboard) dashboard.style.display = "none";
                 const stats = document.getElementById("statsBox"); if (stats) stats.style.display = "none";
                 const pricing = document.getElementById("pricingSection"); if (pricing) pricing.style.display = "none";
+                const dataTools = document.getElementById("dataToolsSection"); if (dataTools) dataTools.style.display = "none";
                 const invoice = document.getElementById("invoiceBox"); if (invoice) invoice.style.display = "none";
                 const add = document.getElementById("addClientBox"); if (add) add.style.display = "block";
                 const clients = document.getElementById("clientsSection"); if (clients) clients.style.display = "block";
@@ -2420,6 +2553,7 @@
                 const dashboard = document.getElementById("dashboardSection"); if (dashboard) dashboard.style.display = "none";
                 const stats = document.getElementById("statsBox"); if (stats) stats.style.display = "none";
                 const pricing = document.getElementById("pricingSection"); if (pricing) pricing.style.display = "none";
+                const dataTools = document.getElementById("dataToolsSection"); if (dataTools) dataTools.style.display = "none";
                 const invoice = document.getElementById("invoiceBox"); if (invoice) invoice.style.display = "none";
                 const add = document.getElementById("addClientBox"); if (add) add.style.display = "block";
                 const clients = document.getElementById("clientsSection"); if (clients) clients.style.display = "block";
@@ -2447,6 +2581,7 @@
                     const clientsSection = document.getElementById("clientsSection");
                     const invoiceBox = document.getElementById("invoiceBox");
                     const pricingSection = document.getElementById("pricingSection");
+                    const dataToolsSection = document.getElementById("dataToolsSection");
                     const dashboardSection = document.getElementById("dashboardSection");
                     const mobileBottomNav = document.getElementById("mobileBottomNav");
                     const loginUser = document.getElementById("loginUser");
@@ -2472,6 +2607,7 @@
                     clientsSection.style.display = "none";
                     invoiceBox.style.display = "none";
                     if (pricingSection) pricingSection.style.display = "none";
+                    if (dataToolsSection) dataToolsSection.style.display = "none";
                     if (dashboardSection) dashboardSection.style.display = "none";
                     
                     loginUser.value = "";
