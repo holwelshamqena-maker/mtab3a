@@ -606,6 +606,11 @@
         .data-stat-card { background:#f5f9fd; border:1px solid #d8e5f0; border-radius:14px; padding:16px; text-align:center; }
         .data-stat-card strong { display:block; color:#0d3b66; font-size:20px; margin-top:7px; }
         .data-stat-card small { color:#718096; }
+        .data-storage-donut { width:132px; height:132px; margin:0 auto 10px; border-radius:50%; background:conic-gradient(#dc3545 0deg, #dc3545 0deg, #16a34a 0deg, #16a34a 360deg); display:grid; place-items:center; position:relative; box-shadow:0 4px 12px rgba(13,59,102,.12); }
+        .data-storage-donut::after { content:""; width:88px; height:88px; border-radius:50%; background:#fff; position:absolute; }
+        .data-storage-donut-content { position:relative; z-index:1; color:#0d3b66; line-height:1.2; }
+        .data-storage-donut-content strong { font-size:18px; margin:0; }
+        .data-storage-donut-content small { display:block; font-size:11px; }
         .data-tool-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
         .data-tool-actions button { min-width:210px; }
         .data-tool-note { color:#52677d; background:#fff9e8; border-right:4px solid #e2a900; border-radius:8px; padding:10px 12px; line-height:1.8; }
@@ -657,7 +662,10 @@
         .dashboard-debt-ticker:hover .debt-ticker-track { animation-play-state:paused; }
         .debt-ticker-card { direction:rtl; min-width:190px; padding:10px 14px; border:1px solid #f0ce77; border-radius:11px; background:#fff; color:#704800; box-shadow:0 3px 8px rgba(180,120,0,.10); cursor:pointer; transition:opacity .4s, transform .2s; }
         .debt-ticker-card:hover { transform:translateY(-2px); background:#fff4cc; }
-        .debt-ticker-card.debt-warning { border-color:#f59e0b; }
+        .debt-ticker-card.debt-normal { border-color:#16a34a; background:#f0fdf4; color:#166534; }
+        .debt-ticker-card.debt-normal small { color:#15803d; }
+        .debt-ticker-card.debt-warning { border-color:#eab308; background:#fefce8; color:#854d0e; }
+        .debt-ticker-card.debt-warning small { color:#a16207; }
         .debt-ticker-card.debt-critical { border-color:#dc3545; background:#fff5f5; color:#8b1e1e; }
         .debt-ticker-card.debt-critical small { color:#dc3545; }
         .debt-ticker-card strong { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; font-size:17px; }
@@ -1057,7 +1065,7 @@
         <div class="data-tools-grid">
             <div class="data-stat-card"><small>البيانات المستخدمة تقديريًا</small><strong id="dataUsedSize">—</strong></div>
             <div class="data-stat-card"><small>السعة المرجعية</small><strong id="dataCapacitySize">—</strong></div>
-            <div class="data-stat-card"><small>المتبقي حسب السعة المرجعية</small><strong id="dataRemainingSize">—</strong></div>
+            <div class="data-stat-card"><small>المتبقي حسب السعة المرجعية تقديري</small><div id="dataStorageDonut" class="data-storage-donut"><div class="data-storage-donut-content"><strong id="dataRemainingPercent">—</strong><small>متبقي</small></div></div><strong id="dataRemainingSize">—</strong><div style="font-size:12px;color:#dc3545;margin-top:4px">الأحمر: مستخدم</div><div style="font-size:12px;color:#16a34a">الأخضر: متبقي</div></div>
         </div>
         <div style="max-width:360px;margin:0 auto;text-align:center">
             <label>السعة المرجعية بالميجابايت
@@ -2365,6 +2373,12 @@
                 getBackupPayload().then(payload => {
                     const usedBytes = dataSizeOf(payload);
                     const capacityBytes = configuredMb * 1024 * 1024;
+                    const usedPercent = Math.min(100, (usedBytes / capacityBytes) * 100);
+                    const remainingPercent = Math.max(0, 100 - usedPercent);
+                    const donut = document.getElementById("dataStorageDonut");
+                    const percentLabel = document.getElementById("dataRemainingPercent");
+                    if (donut) donut.style.background = `conic-gradient(#dc3545 0deg, #dc3545 ${usedPercent * 3.6}deg, #16a34a ${usedPercent * 3.6}deg, #16a34a 360deg)`;
+                    if (percentLabel) percentLabel.textContent = `${remainingPercent.toFixed(2)}%`;
                     if (used) used.textContent = formatDataSize(usedBytes);
                     if (capacity) capacity.textContent = formatDataSize(capacityBytes);
                     if (remaining) remaining.textContent = formatDataSize(Math.max(0, capacityBytes - usedBytes));
@@ -2451,7 +2465,7 @@
                     snapshot.forEach(child => { const invoice = child.val() || {}; if (invoice.isPayment) paid += Number(invoice.amount) || 0; else { total += Number(invoice.total) || 0; const invoiceRemaining = Number(invoice.remaining) || 0; if (invoiceRemaining > 0 && invoice.date) { const parsed = new Date(invoice.date); const dateValue = isNaN(parsed.getTime()) ? parseArabicDate(invoice.date) : parsed; if (dateValue && (!oldestDate || dateValue < oldestDate)) oldestDate = dateValue; } } });
                     const remaining = total - paid;
                     const debtDays = oldestDate ? Math.max(0, Math.floor((new Date() - oldestDate) / 86400000)) : 0;
-                    return { id, name: client.name || "بدون اسم", remaining, debtDays, severity: debtDays > 30 ? "critical" : debtDays > 15 ? "warning" : "normal" };
+                    return { id, name: client.name || "بدون اسم", remaining, debtDays, severity: debtDays >= 31 ? "critical" : debtDays >= 16 ? "warning" : "normal" };
                 }).catch(() => null))).then(rows => {
                     const debts = rows.filter(row => row && row.remaining > 0.005).sort((a,b) => b.remaining - a.remaining);
                     if (!debts.length) { track.innerHTML = '<span class="debt-ticker-empty">لا يوجد عملاء لديهم مديونية حاليًا</span>'; return; }
